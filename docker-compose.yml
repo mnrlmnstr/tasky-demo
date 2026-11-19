@@ -52,6 +52,13 @@ services:
         - action: sync
           path: ./backend/tests
           target: /app/tests
+        # A restart reruns entrypoint.sh, which applies the migrations.
+        - action: sync+restart
+          path: ./backend/alembic
+          target: /app/alembic
+        - action: sync+restart
+          path: ./backend/alembic.ini
+          target: /app/alembic.ini
         - action: rebuild
           path: ./backend/pyproject.toml
         - action: rebuild

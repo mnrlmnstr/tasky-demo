@@ -12,7 +12,7 @@ Task model:
 
 | Field        | Type                              | Notes                          |
 | ------------ | --------------------------------- | ------------------------------ |
-| `id`         | integer                           | primary key                    |
+| `id`         | UUID (v4)                         | primary key, set by the server |
 | `title`      | string (1–200)                    | required                       |
 | `description`| text                              | optional                       |
 | `status`     | `todo` \| `in_progress` \| `done` | default `todo`                 |
@@ -102,6 +102,7 @@ tasky-demo/
 │   │   ├── services/     # business logic / queries
 │   │   └── main.py
 │   ├── alembic/          # migrations
+│   ├── alembic.ini
 │   ├── tests/
 │   ├── Dockerfile
 │   ├── entrypoint.sh     # migrations, demo data, then the server
@@ -128,7 +129,7 @@ docker compose up
 
 That one command starts the database, the backend and the frontend. No `.env` file is needed: the compose file has working defaults.
 
-> For now the application is a placeholder page that reports whether the API is healthy, and the API has only the health route. Applying migrations and loading demo tasks on start are not implemented yet: they arrive with [issue #3](https://github.com/mnrlmnstr/tasky-demo/issues/3) and [issue #10](https://github.com/mnrlmnstr/tasky-demo/issues/10).
+> For now the application is a placeholder page that reports whether the API is healthy, and the API has only the health route. The backend applies the database migrations every time it starts. Loading demo tasks on start is not implemented yet: it arrives with [issue #10](https://github.com/mnrlmnstr/tasky-demo/issues/10).
 
 | What        | URL                         |
 | ----------- | --------------------------- |

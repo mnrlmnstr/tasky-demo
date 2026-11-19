@@ -93,4 +93,13 @@ db_ports="$(docker port "$db_container")" \
 [ -z "$db_ports" ] \
   || fail "the db service is published to the host (${db_ports}); it must stay internal"
 
+echo "--- migrations created the tasks table in the app database"
+# POSTGRES_USER/POSTGRES_DB are read inside the db container, so this is the database
+# the backend uses (DATABASE_URL), not the separate test database.
+tasks_table="$(compose exec -T db sh -c \
+  'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT to_regclass('"'"'public.tasks'"'"')"')" \
+  || fail "could not query the app database for the tasks table"
+[ "$(printf '%s' "$tasks_table" | tr -d '[:space:]')" = "tasks" ] \
+  || fail "the tasks table does not exist in the app database (did 'alembic upgrade head' run in backend/entrypoint.sh?)"
+
 echo "SMOKE OK"
