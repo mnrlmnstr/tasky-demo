@@ -1,5 +1,6 @@
 """Task create, read, update and delete over HTTP, down to the real database."""
 
+import logging
 import uuid
 from datetime import datetime
 
@@ -297,3 +298,36 @@ async def test_delete_unknown_task_returns_404(rollback_client: httpx.AsyncClien
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Task not found"}
+
+
+@pytest.mark.anyio
+async def test_task_changes_are_logged_with_the_task_id_and_no_content(
+    rollback_client: httpx.AsyncClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.INFO, logger="app.services.tasks"):
+        created = (await rollback_client.post(TASKS, json={"title": "Secret plan"})).json()
+        url = f"{TASKS}/{created['id']}"
+        await rollback_client.patch(url, json={"title": "Other secret", "status": "done"})
+        await rollback_client.delete(url)
+
+    records = [r for r in caplog.records if r.name == "app.services.tasks"]
+    assert [(r.levelno, r.getMessage()) for r in records] == [
+        (logging.INFO, "task_created"),
+        (logging.INFO, "task_updated"),
+        (logging.INFO, "task_deleted"),
+    ]
+    assert all(vars(r)["task_id"] == created["id"] for r in records)
+    assert vars(records[1])["fields"] == "status,title"
+    logged = [str(value) for r in records for value in vars(r).values()]
+    assert not any("secret" in value.lower() for value in logged)
+
+
+@pytest.mark.anyio
+async def test_failed_change_of_unknown_task_logs_no_event(
+    rollback_client: httpx.AsyncClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.INFO, logger="app.services.tasks"):
+        await rollback_client.patch(f"{TASKS}/{uuid.uuid4()}", json={"status": "done"})
+        await rollback_client.delete(f"{TASKS}/{uuid.uuid4()}")
+
+    assert [r for r in caplog.records if r.name == "app.services.tasks"] == []

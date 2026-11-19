@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from sqlalchemy import func, select
@@ -8,11 +9,14 @@ from app.models.task import Task
 from app.schemas.task import TaskCreate, TaskOrdering, TaskUpdate
 from app.services.errors import TaskNotFound
 
+logger = logging.getLogger(__name__)
+
 
 async def create_task(session: AsyncSession, data: TaskCreate) -> Task:
     task = Task(**data.model_dump())
     session.add(task)
     await session.commit()
+    logger.info("task_created", extra={"task_id": str(task.id)})
     return task
 
 
@@ -66,10 +70,15 @@ async def list_tasks(
 
 async def update_task(session: AsyncSession, task_id: uuid.UUID, data: TaskUpdate) -> Task:
     task = await get_task(session, task_id)
-    for field, value in data.model_dump(exclude_unset=True).items():
+    changes = data.model_dump(exclude_unset=True)
+    for field, value in changes.items():
         setattr(task, field, value)
     task.touch()
     await session.commit()
+    # Field names only: values (title, description) are user content.
+    logger.info(
+        "task_updated", extra={"task_id": str(task_id), "fields": ",".join(sorted(changes))}
+    )
     return task
 
 
@@ -77,3 +86,4 @@ async def delete_task(session: AsyncSession, task_id: uuid.UUID) -> None:
     task = await get_task(session, task_id)
     task.mark_deleted()
     await session.commit()
+    logger.info("task_deleted", extra={"task_id": str(task_id)})
