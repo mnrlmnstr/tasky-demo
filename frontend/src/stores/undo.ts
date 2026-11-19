@@ -17,11 +17,14 @@ export interface UndoOffer {
 /**
  * At most one action can be undone at a time: a new offer replaces the pending one. The offer, or the
  * message of an undo that failed, is withdrawn after `UNDO_WINDOW_MS`, not counting the time spent paused.
+ * The same single line also carries the notice of an action that failed, so messages never stack.
  */
 export const useUndoStore = defineStore('undo', () => {
   const pending = shallowRef<UndoOffer | null>(null)
   const running = ref(false)
   const error = ref<ApiErrorKind | null>(null)
+  // Why an action outside the toast failed. `error` is only ever about a failed undo.
+  const notice = ref<ApiErrorKind | null>(null)
 
   const label = computed(() => pending.value?.label ?? null)
 
@@ -36,7 +39,7 @@ export const useUndoStore = defineStore('undo', () => {
   }
 
   function startClock(): void {
-    const nothingShown = pending.value === null && error.value === null
+    const nothingShown = pending.value === null && error.value === null && notice.value === null
     if (paused || running.value || nothingShown) return
     startedAt = Date.now()
     timer = setTimeout(clear, remaining)
@@ -46,15 +49,22 @@ export const useUndoStore = defineStore('undo', () => {
     stopClock()
     pending.value = null
     error.value = null
+    notice.value = null
     running.value = false
   }
 
-  function show(offer: UndoOffer | null, failure: ApiErrorKind | null): void {
+  function show(offer: UndoOffer | null, failure: ApiErrorKind | null, problem: ApiErrorKind | null = null): void {
     clear()
     pending.value = offer
     error.value = failure
+    notice.value = problem
     remaining = UNDO_WINDOW_MS
     startClock()
+  }
+
+  /** Says, by its kind, that an action failed: shown in the toast in place of whatever it held, for one window. */
+  function notifyError(kind: ApiErrorKind): void {
+    show(null, null, kind)
   }
 
   function offer(next: UndoOffer): void {
@@ -98,5 +108,5 @@ export const useUndoStore = defineStore('undo', () => {
     else show(null, failure)
   }
 
-  return { label, running, error, offer, run, dismiss, pause, resume }
+  return { label, running, error, notice, offer, notifyError, run, dismiss, pause, resume }
 })
