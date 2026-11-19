@@ -77,13 +77,12 @@ describe('app shell', () => {
     expect(icons.map((icon) => icon.attributes('aria-hidden'))).toEqual(['true', 'true'])
   })
 
-  it('keeps the page as it is when the header buttons are pressed, since nothing is wired to them yet', async () => {
+  it('keeps the page as it is when "New task" is pressed, since nothing is wired to it yet', async () => {
     const api = fakeTasksApi()
     const page = mountApp()
     await api.respondTo(0, pageOf(['Write the report']))
     const before = page.html()
 
-    await page.get('header button[aria-label="Settings"]').trigger('click')
     await page.get('header button[data-variant="primary"]').trigger('click')
     await flushPromises()
 
@@ -190,5 +189,131 @@ describe('task list on the page', () => {
     expect(page.get('header button[data-variant="primary"]').text()).toBe('Нова задача')
     expect(page.get('main [data-testid="task-total"]').text()).toBe('3 задачі')
     expect(page.get('main [role="img"]').attributes('aria-label')).toBe('До виконання')
+  })
+})
+
+describe('settings from the header', () => {
+  /** Lets the dialog finish its deferred work: focus moves and the outside-press listener are set up on a timer. */
+  async function settle() {
+    await flushPromises()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await flushPromises()
+  }
+
+  function mountAppOnPage() {
+    mounted = mount(App, { global: { plugins: appPlugins() }, attachTo: document.body })
+    return mounted
+  }
+
+  function findSettingsDialog(): HTMLElement | null {
+    return document.body.querySelector<HTMLElement>('[role="dialog"]')
+  }
+
+  async function openSettings(page: VueWrapper) {
+    const gear = page.get<HTMLButtonElement>('header button[aria-label="Settings"]')
+    gear.element.focus()
+    await gear.trigger('click')
+    await settle()
+    return gear.element
+  }
+
+  async function choose(label: string) {
+    const options = [...(findSettingsDialog()?.querySelectorAll('button') ?? [])]
+    const option = options.find((candidate) => candidate.textContent.trim() === label)
+    if (!option) throw new Error(`The settings dialog has no option "${label}"`)
+    option.click()
+    await flushPromises()
+  }
+
+  function pressedOptions(): string[] {
+    return [...(findSettingsDialog()?.querySelectorAll('button[aria-pressed="true"]') ?? [])].map(
+      (option) => option.textContent.trim(),
+    )
+  }
+
+  beforeEach(() => {
+    document.documentElement.removeAttribute('data-theme')
+  })
+
+  it('keeps the settings dialog closed until it is asked for', async () => {
+    fakeTasksApi()
+
+    mountAppOnPage()
+    await settle()
+
+    expect(findSettingsDialog()).toBeNull()
+  })
+
+  it('opens the settings dialog when the settings button is pressed, without asking the API again', async () => {
+    const api = fakeTasksApi()
+    const page = mountAppOnPage()
+    await api.respondTo(0, pageOf(['Write the report']))
+
+    await openSettings(page)
+
+    const dialog = findSettingsDialog()
+    expect(dialog?.textContent).toContain('Settings')
+    expect(pressedOptions()).toEqual(['System', '20', 'English'])
+    expect(api.queries).toHaveLength(1)
+  })
+
+  it('returns focus to the settings button when the dialog is closed', async () => {
+    fakeTasksApi()
+    const page = mountAppOnPage()
+    const gear = await openSettings(page)
+    expect(findSettingsDialog()?.contains(document.activeElement)).toBe(true)
+
+    findSettingsDialog()?.querySelector<HTMLButtonElement>('button[aria-label="Close"]')?.click()
+    await settle()
+
+    expect(findSettingsDialog()).toBeNull()
+    expect(document.activeElement).toBe(gear)
+  })
+
+  it('turns the page dark as soon as "Dark" is picked, and keeps it dark after a reload', async () => {
+    fakeTasksApi()
+    const page = mountAppOnPage()
+    await openSettings(page)
+
+    await choose('Dark')
+
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+
+    page.unmount()
+    disposePinia(getActivePinia()!)
+    document.documentElement.removeAttribute('data-theme')
+    const reloaded = mountAppOnPage()
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark')
+    await openSettings(reloaded)
+    expect(pressedOptions()).toContain('Dark')
+  })
+
+  it('asks for the first page with 50 tasks as soon as "50" is picked', async () => {
+    history.replaceState(null, '', '/?page=2')
+    const api = fakeTasksApi()
+    const page = mountAppOnPage()
+    await api.respondTo(0, pageOf(['Write the report'], { page: 2, pages: 2, total: 21 }))
+    await openSettings(page)
+
+    await choose('50')
+
+    expect(api.queries).toHaveLength(2)
+    expect(api.queries[1]).toEqual({ ordering: '-created_at', page: '1', page_size: '50' })
+  })
+
+  it('switches the header, the list and the dialog to Ukrainian as soon as "Українська" is picked', async () => {
+    const api = fakeTasksApi()
+    const page = mountAppOnPage()
+    await api.respondTo(0, pageOf(['Write the report', 'Call the bank', 'Book a flight']))
+    await openSettings(page)
+
+    await choose('Українська')
+
+    expect(page.get('header button[data-variant="primary"]').text()).toBe('Нова задача')
+    expect(page.find('header button[aria-label="Налаштування"]').exists()).toBe(true)
+    expect(page.get('main [data-testid="task-total"]').text()).toBe('3 задачі')
+    expect(findSettingsDialog()?.textContent).toContain('Задач на сторінці')
+    expect(document.documentElement.lang).toBe('uk')
+    expect(api.queries).toHaveLength(1)
   })
 })
