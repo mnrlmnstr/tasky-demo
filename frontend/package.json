@@ -11,6 +11,7 @@
     "api:generate": "orval --config orval.config.ts"
   },
   "dependencies": {
+    "@vueuse/core": "^15.0.0",
     "lucide-vue-next": "^1.0.0",
     "pinia": "^4.1.0",
     "reka-ui": "^2.11.0",
