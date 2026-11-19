@@ -2,6 +2,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.routing import APIRoute
 
 from app.api import health, openapi, tasks
 from app.api.errors import install_error_handling
@@ -24,6 +25,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await engine.dispose()
 
 
+def camel_case_operation_id(route: APIRoute) -> str:
+    """Names an operation after its route function: `list_tasks` becomes `listTasks`."""
+    first, *rest = route.name.split("_")
+    return first + "".join(word.capitalize() for word in rest)
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="Tasky API",
@@ -31,6 +38,7 @@ def create_app() -> FastAPI:
         version="0.1.0",
         openapi_tags=openapi.TAGS,
         lifespan=lifespan,
+        generate_unique_id_function=camel_case_operation_id,
     )
     install_error_handling(app)
     for router in (health.router, tasks.router):

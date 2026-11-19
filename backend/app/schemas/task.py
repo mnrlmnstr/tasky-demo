@@ -43,6 +43,15 @@ Title = Annotated[
 Deadline = Annotated[AwareDatetime, AfterValidator(_to_utc)]
 
 
+def _without_null(schema: dict[str, Any]) -> None:
+    """Documents an optional field as its non-null type: null is never accepted, so not offered."""
+    [kept] = [variant for variant in schema.pop("anyOf") if variant != {"type": "null"}]
+    schema.update(kept)
+    if "$ref" in kept:
+        # A reference stands alone, as it would for a field typed without the None.
+        schema.pop("title", None)
+
+
 class TaskOrdering(StrEnum):
     """How a task list is sorted; a leading `-` means descending."""
 
@@ -55,13 +64,18 @@ class TaskOrdering(StrEnum):
 class TaskListQuery(BaseModel):
     """What a task list asks for: filters, order and which page."""
 
+    # A query string has no null: leaving a filter out is the only way not to filter.
     status: TaskStatus | None = Field(
-        default=None, description="Only tasks with this status.", examples=["in_progress"]
+        default=None,
+        description="Only tasks with this status.",
+        examples=["in_progress"],
+        json_schema_extra=_without_null,
     )
     search: Text | None = Field(
         default=None,
         description="Only tasks whose title contains this text, ignoring case.",
         examples=["звіт"],
+        json_schema_extra=_without_null,
     )
     ordering: TaskOrdering = Field(
         default=TaskOrdering.CREATED_AT_DESC,
@@ -106,15 +120,6 @@ class TaskCreate(BaseModel):
     deadline: Deadline | None = Field(
         default=None, description=_DEADLINE, examples=[_DEADLINE_EXAMPLE]
     )
-
-
-def _without_null(schema: dict[str, Any]) -> None:
-    """Documents an optional field as its non-null type: null is a 422, so don't offer it."""
-    [kept] = [variant for variant in schema.pop("anyOf") if variant != {"type": "null"}]
-    schema.update(kept)
-    if "$ref" in kept:
-        # A reference stands alone, as it would for a field typed without the None.
-        schema.pop("title", None)
 
 
 class TaskUpdate(BaseModel):

@@ -2,7 +2,7 @@
 
 A full-stack task manager built as a test assignment: a Python REST API backed by PostgreSQL, with a Vue 3 single-page frontend, all running through Docker Compose.
 
-> **Status:** the backend is done (API, tests, OpenAPI docs, demo data). The frontend is in progress: for now it is a placeholder page that reports whether the API is healthy. See the [Frontend](https://github.com/mnrlmnstr/tasky-demo/milestone/2) milestone.
+> **Status:** the backend is done (API, tests, OpenAPI docs, demo data). The frontend is in progress: for now it is an empty shell, a header with settings and "New task" buttons that do nothing yet and a line that reports whether the API is healthy. See the [Frontend](https://github.com/mnrlmnstr/tasky-demo/milestone/2) milestone.
 
 ## Tech stack
 
@@ -146,6 +146,15 @@ Lint and format checks for the backend:
 docker compose exec backend ruff check .
 docker compose exec backend ruff format --check .
 ```
+
+Regenerate the API client after an API change (on the host; needs the backend virtualenv and `npm install` in `frontend/`):
+
+```bash
+cd backend && .venv/bin/python -m scripts.export_openapi   # writes frontend/openapi.json
+cd ../frontend && npm run api:generate                     # rewrites frontend/src/api/generated
+```
+
+Both outputs are committed. `frontend/src/api/generated` is never edited by hand, and nothing checks that it matches the API: run the two commands whenever a route or schema changes.
 
 End-to-end check of the whole Compose setup (needs `curl` on the host):
 

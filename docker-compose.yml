@@ -52,6 +52,9 @@ services:
         - action: sync
           path: ./backend/tests
           target: /app/tests
+        - action: sync
+          path: ./backend/scripts
+          target: /app/scripts
         # A restart reruns entrypoint.sh, which applies the migrations.
         - action: sync+restart
           path: ./backend/alembic
@@ -91,6 +94,10 @@ services:
         - action: sync+restart
           path: ./frontend/vite.config.ts
           target: /app/vite.config.ts
+        # Not read by the dev server: synced so `npm run typecheck` in the container matches the host.
+        - action: sync
+          path: ./frontend/tsconfig.json
+          target: /app/tsconfig.json
         - action: rebuild
           path: ./frontend/package.json
         - action: rebuild

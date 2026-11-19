@@ -1,3 +1,4 @@
+import tailwindcss from '@tailwindcss/vite'
 import vue from '@vitejs/plugin-vue'
 import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
@@ -10,7 +11,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '')
 
   return {
-    plugins: [vue()],
+    plugins: [vue(), tailwindcss()],
     server: {
       host: '0.0.0.0',
       port: DEV_SERVER_PORT,
@@ -28,7 +29,8 @@ export default defineConfig(({ mode }) => {
       coverage: {
         provider: 'v8',
         include: ['src/**/*.{ts,vue}'],
-        exclude: ['src/**/*.test.ts', 'src/**/*.d.ts'],
+        // src/api/generated is orval output: regenerated with `npm run api:generate`, never edited by hand.
+        exclude: ['src/**/*.test.ts', 'src/**/*.d.ts', 'src/api/generated/**'],
         reporter: ['text'],
       },
     },
