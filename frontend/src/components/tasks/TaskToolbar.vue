@@ -105,7 +105,13 @@ const sortItems = computed(() =>
       </button>
     </div>
 
-    <SegmentedControl v-model="view.status" :options="statusOptions" :label="t('toolbar.statusLabel')" />
+    <!-- On a phone the four statuses share the full width, with tighter segments so no label breaks in two. -->
+    <SegmentedControl
+      v-model="view.status"
+      :options="statusOptions"
+      :label="t('toolbar.statusLabel')"
+      class="max-sm:w-full [&>button]:flex-auto [&>button]:whitespace-nowrap max-sm:[&>button]:px-1.5"
+    />
 
     <DropdownMenu :items="sortItems" :checked="view.ordering" @select="view.ordering = $event">
       <template #trigger>
