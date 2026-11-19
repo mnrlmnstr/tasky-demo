@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engin
 from sqlalchemy.pool import NullPool
 
 from app.core.config import get_settings
+from app.core.database import get_session
 from app.main import create_app
 from tests.asgi import app_client
 
@@ -111,4 +112,17 @@ async def db_session(db_engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
 async def client(migrated_database: str) -> AsyncIterator[httpx.AsyncClient]:
     """The real app over ASGI; its lifespan builds the engine from the test settings."""
     async with app_client(create_app()) as http:
+        yield http
+
+
+@pytest.fixture
+async def rollback_client(db_session: AsyncSession) -> AsyncIterator[httpx.AsyncClient]:
+    """The real app, with every request using `db_session`, so its writes are rolled back."""
+
+    async def _session() -> AsyncIterator[AsyncSession]:
+        yield db_session
+
+    app = create_app()
+    app.dependency_overrides[get_session] = _session
+    async with app_client(app) as http:
         yield http

@@ -44,3 +44,13 @@ class Task(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
     )
+
+    # Set on soft delete; a task with it set counts as gone.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    def touch(self) -> None:
+        """Mark the task as updated now, even when no other field changed value."""
+        self.updated_at = _utcnow()
+
+    def mark_deleted(self) -> None:
+        self.deleted_at = _utcnow()

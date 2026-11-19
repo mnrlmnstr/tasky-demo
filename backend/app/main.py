@@ -3,7 +3,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import health
+from app.api import health, tasks
+from app.api.errors import register_exception_handlers
 from app.core.config import get_settings
 from app.core.database import create_engine, create_session_factory
 
@@ -22,7 +23,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_app() -> FastAPI:
     app = FastAPI(title="Tasky API", lifespan=lifespan)
+    register_exception_handlers(app)
     app.include_router(health.router, prefix=API_PREFIX)
+    app.include_router(tasks.router, prefix=API_PREFIX)
     return app
 
 
