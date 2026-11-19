@@ -26,12 +26,18 @@ package = false
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# Coverage runs on every `pytest`; pass `--no-cov` when running a subset of the tests.
+addopts = ["--cov", "--cov-report=term-missing:skip-covered"]
 
 [tool.coverage.run]
 source = ["app"]
 branch = true
 # SQLAlchemy's async layer runs on greenlets; without this coverage loses track of them.
 concurrency = ["greenlet", "thread"]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
 
 [tool.ruff]
 target-version = "py313"
