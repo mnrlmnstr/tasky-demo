@@ -15,6 +15,7 @@ export FRONTEND_PORT="${FRONTEND_PORT:-8080}"
 export BACKEND_PORT="${BACKEND_PORT:-8000}"
 PROJECT="${SMOKE_PROJECT_NAME:-tasky-smoke}"
 WAIT_TIMEOUT="${SMOKE_WAIT_TIMEOUT:-300}"
+LOG_TAIL="${SMOKE_LOG_TAIL:-50}"
 
 FRONTEND_URL="http://localhost:${FRONTEND_PORT}"
 BACKEND_URL="http://localhost:${BACKEND_PORT}"
@@ -25,6 +26,11 @@ compose() {
 }
 
 fail() {
+  # The stack is removed on exit, so its state and logs are shown first:
+  # afterwards there is nothing left to inspect.
+  echo "--- service state and last ${LOG_TAIL} log lines per service" >&2
+  compose ps -a >&2 || true
+  compose logs --no-color --tail "$LOG_TAIL" >&2 || true
   echo "SMOKE FAILED: $*" >&2
   exit 1
 }
