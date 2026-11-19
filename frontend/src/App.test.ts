@@ -58,4 +58,29 @@ describe('placeholder page', () => {
 
     expect(page.get('[data-testid="api-status"]').text()).toBe('API is unavailable')
   })
+
+  it('does not report a healthy API when /api is not proxied and the dev server answers with its own page', async () => {
+    // Without the proxy the Vite dev server answers any unknown path with index.html and status 200.
+    fakeFetch(
+      async () =>
+        new Response('<!doctype html><html><body><div id="app"></div></body></html>', {
+          status: 200,
+          headers: { 'Content-Type': 'text/html' },
+        }),
+    )
+
+    const page = mount(App)
+    await flushPromises()
+
+    expect(page.get('[data-testid="api-status"]').text()).not.toBe('API is healthy')
+  })
+
+  it('does not report a healthy API when the health endpoint answers 200 with a non-ok status', async () => {
+    fakeFetch(async () => jsonResponse({ status: 'unavailable' }))
+
+    const page = mount(App)
+    await flushPromises()
+
+    expect(page.get('[data-testid="api-status"]').text()).not.toBe('API is healthy')
+  })
 })
