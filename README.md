@@ -2,7 +2,7 @@
 
 A full-stack task manager built as a test assignment: a Python REST API backed by PostgreSQL, with a Vue 3 single-page frontend, all running through Docker Compose.
 
-> **Status:** the backend is done (API, tests, OpenAPI docs, demo data). The frontend is in progress: for now it is a placeholder page that reports whether the API is healthy. See the [Frontend](https://github.com/mnrlmnstr/tasky-demo/milestone/2) milestone.
+> **Status:** the backend is done (API, tests, OpenAPI docs, demo data). The frontend is in progress: for now it is an empty shell, a header with settings and "New task" buttons that do nothing yet and a line that reports whether the API is healthy. See the [Frontend](https://github.com/mnrlmnstr/tasky-demo/milestone/2) milestone.
 
 ## Tech stack
 

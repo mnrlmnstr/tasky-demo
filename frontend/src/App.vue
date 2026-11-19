@@ -1,5 +1,10 @@
 <script setup lang="ts">
+import { Plus, Settings } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
+
+import { getHealth } from './api/generated/client'
+import Button from './components/ui/Button.vue'
+import IconButton from './components/ui/IconButton.vue'
 
 type ApiStatus = 'loading' | 'healthy' | 'failed'
 
@@ -11,16 +16,15 @@ const MESSAGES: Record<ApiStatus, string> = {
 
 const apiStatus = ref<ApiStatus>('loading')
 
-// A 200 alone proves nothing: without the proxy the dev server answers /api with its own page.
+// A 200 with a JSON body alone proves nothing: only the health route answers with this exact shape.
 function reportsOk(body: unknown): boolean {
   return typeof body === 'object' && body !== null && 'status' in body && body.status === 'ok'
 }
 
 onMounted(async () => {
   try {
-    const response = await fetch('/api/v1/health')
-    // A body that is not JSON makes json() throw, which lands in the catch below.
-    apiStatus.value = response.ok && reportsOk(await response.json()) ? 'healthy' : 'failed'
+    // Without the proxy the dev server answers /api with its own page; the client rejects that non-JSON body.
+    apiStatus.value = reportsOk(await getHealth()) ? 'healthy' : 'failed'
   } catch {
     apiStatus.value = 'failed'
   }
@@ -28,8 +32,21 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main>
-    <h1>Tasky</h1>
-    <p data-testid="api-status">{{ MESSAGES[apiStatus] }}</p>
-  </main>
+  <div class="mx-auto min-h-dvh max-w-[760px] border-x border-border bg-surface">
+    <header class="flex items-center gap-2 border-b border-border px-5 py-4">
+      <h1 class="mr-auto text-lg font-semibold">Tasky</h1>
+      <IconButton label="Settings">
+        <Settings aria-hidden="true" />
+      </IconButton>
+      <Button variant="primary">
+        <Plus class="size-4" aria-hidden="true" />
+        New task
+      </Button>
+    </header>
+    <main class="px-5 py-6">
+      <p data-testid="api-status" role="status" class="text-sm text-text-muted">
+        {{ MESSAGES[apiStatus] }}
+      </p>
+    </main>
+  </div>
 </template>

@@ -16,9 +16,65 @@ function jsonResponse(body: unknown, status = 200): Response {
   })
 }
 
-describe('placeholder page', () => {
+describe('app shell', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+  })
+
+  it('shows the app title as the page heading inside the header', () => {
+    fakeFetch(() => new Promise<Response>(() => {}))
+
+    const page = mount(App)
+
+    expect(page.get('header h1').text()).toBe('Tasky')
+  })
+
+  it('offers a settings button in the header, named for assistive technology and drawn as the settings icon', () => {
+    fakeFetch(() => new Promise<Response>(() => {}))
+
+    const page = mount(App)
+
+    const settings = page.get('header button[aria-label="Settings"]')
+    expect(settings.find('svg.lucide-settings').exists()).toBe(true)
+  })
+
+  it('offers a primary "New task" button with a plus icon in the header', () => {
+    fakeFetch(() => new Promise<Response>(() => {}))
+
+    const page = mount(App)
+
+    const newTask = page.get('header button[data-variant="primary"]')
+    expect(newTask.text()).toBe('New task')
+    expect(newTask.find('svg.lucide-plus').exists()).toBe(true)
+  })
+
+  it('hides the decorative header icons from assistive technology', () => {
+    fakeFetch(() => new Promise<Response>(() => {}))
+
+    const page = mount(App)
+
+    const icons = page.findAll('header button svg')
+    expect(icons.map((icon) => icon.attributes('aria-hidden'))).toEqual(['true', 'true'])
+  })
+
+  it('keeps the page as it is when the header buttons are pressed, since nothing is wired to them yet', async () => {
+    fakeFetch(async () => jsonResponse({ status: 'ok' }))
+    const page = mount(App)
+    await flushPromises()
+    const before = page.html()
+
+    await page.get('header button[aria-label="Settings"]').trigger('click')
+    await page.get('header button[data-variant="primary"]').trigger('click')
+
+    expect(page.html()).toBe(before)
+  })
+
+  it('announces the API status line in the main area', () => {
+    fakeFetch(() => new Promise<Response>(() => {}))
+
+    const page = mount(App)
+
+    expect(page.get('main [data-testid="api-status"]').attributes('role')).toBe('status')
   })
 
   it('shows a loading state while the API health request is pending', () => {
@@ -36,7 +92,7 @@ describe('placeholder page', () => {
     await flushPromises()
 
     expect(page.get('[data-testid="api-status"]').text()).toBe('API is healthy')
-    expect(fetchFake).toHaveBeenCalledWith('/api/v1/health')
+    expect(fetchFake).toHaveBeenCalledExactlyOnceWith('/api/v1/health', { method: 'GET' })
   })
 
   it('shows the API as unavailable when the request cannot reach it', async () => {
