@@ -8,6 +8,7 @@ import TaskList from './components/tasks/TaskList.vue'
 import TaskToolbar from './components/tasks/TaskToolbar.vue'
 import Button from './components/ui/Button.vue'
 import IconButton from './components/ui/IconButton.vue'
+import UndoToast from './components/undo/UndoToast.vue'
 import { useTasksStore } from './stores/tasks'
 
 const { t } = useI18n()
@@ -33,5 +34,6 @@ useTasksStore().start()
       <TaskToolbar class="mb-4" />
       <TaskList />
     </main>
+    <UndoToast />
   </div>
 </template>
