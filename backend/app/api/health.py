@@ -3,10 +3,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.errors import INTERNAL_ERROR
 from app.core.database import get_session
 from app.services.health import database_is_reachable
 
-router = APIRouter(tags=["health"])
+router = APIRouter(tags=["health"], responses=INTERNAL_ERROR)
 
 
 @router.get("/health")

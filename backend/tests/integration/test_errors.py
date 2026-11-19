@@ -1,3 +1,4 @@
+import json
 import logging
 import traceback
 from collections.abc import AsyncIterator, Callable, Iterator
@@ -171,6 +172,7 @@ async def test_task_routes_declare_422_with_field_errors_body(
         ("get", "/api/v1/tasks/{task_id}"),
         ("patch", "/api/v1/tasks/{task_id}"),
         ("delete", "/api/v1/tasks/{task_id}"),
+        ("get", "/api/v1/health"),
     ],
 )
 async def test_task_routes_declare_500_with_detail_body(
@@ -179,6 +181,32 @@ async def test_task_routes_declare_500_with_detail_body(
     schema = _response_schema(openapi, method, path, "500")
 
     assert schema == {"$ref": "#/components/schemas/ErrorDetail"}
+
+
+def _reject_non_json_constant(name: str) -> None:
+    raise ValueError(f"{name} is not valid JSON")
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("raw", "echoed"),
+    [
+        (b'{"title": [NaN, 1.5]}', ["NaN", 1.5]),
+        (b'{"title": {"a": [{"b": Infinity}]}}', {"a": [{"b": "Infinity"}]}),
+        (b'{"title": 1e400}', "Infinity"),
+        (b'{"title": "t", "unknown": -Infinity}', "-Infinity"),
+    ],
+)
+async def test_422_echoes_non_finite_numbers_as_strings_at_any_depth(
+    rollback_client: httpx.AsyncClient, raw: bytes, echoed: Any
+) -> None:
+    response = await rollback_client.post(
+        "/api/v1/tasks", content=raw, headers={"content-type": "application/json"}
+    )
+
+    assert response.status_code == 422
+    body = json.loads(response.text, parse_constant=_reject_non_json_constant)
+    assert [error["input"] for error in body["detail"]] == [echoed]
 
 
 @pytest.mark.anyio

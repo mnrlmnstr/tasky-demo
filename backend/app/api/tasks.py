@@ -4,18 +4,13 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.errors import INTERNAL_ERROR
 from app.core.database import get_session
 from app.schemas.errors import ErrorDetail
 from app.schemas.pagination import Page
 from app.schemas.task import TaskCreate, TaskListQuery, TaskRead, TaskUpdate
 from app.services import tasks as task_service
 
-INTERNAL_ERROR: dict[int | str, dict[str, Any]] = {
-    status.HTTP_500_INTERNAL_SERVER_ERROR: {
-        "model": ErrorDetail,
-        "description": "Internal server error",
-    }
-}
 NOT_FOUND: dict[int | str, dict[str, Any]] = {
     status.HTTP_404_NOT_FOUND: {"model": ErrorDetail, "description": "Task not found"}
 }

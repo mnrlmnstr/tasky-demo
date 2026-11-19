@@ -32,9 +32,7 @@ async def test_create_task_accepts_any_aware_deadline(
 # Agreed rule: "any deadline date is allowed". A deadline whose UTC form falls outside
 # the representable range must at worst be a 422 field error, never a 500.
 @pytest.mark.anyio
-@pytest.mark.parametrize(
-    "deadline", ["0001-01-01T00:00:00+01:00", "9999-12-31T23:30:00-01:00"]
-)
+@pytest.mark.parametrize("deadline", ["0001-01-01T00:00:00+01:00", "9999-12-31T23:30:00-01:00"])
 async def test_deadline_out_of_utc_range_is_not_a_500(
     rollback_client: httpx.AsyncClient, deadline: str
 ) -> None:

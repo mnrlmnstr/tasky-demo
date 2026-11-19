@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import traceback
 from typing import Any
 
@@ -9,11 +10,20 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.schemas.errors import ErrorDetail
 from app.services.errors import TaskNotFound
 
 logger = logging.getLogger(__name__)
 
 INTERNAL_ERROR_DETAIL = "Internal server error"
+
+# The OpenAPI declaration of the 500 that UnhandledErrorMiddleware sends, for any router.
+INTERNAL_ERROR: dict[int | str, dict[str, Any]] = {
+    status.HTTP_500_INTERNAL_SERVER_ERROR: {
+        "model": ErrorDetail,
+        "description": INTERNAL_ERROR_DETAIL,
+    }
+}
 
 
 def _traceback_without_message(exc: Exception) -> str:
@@ -29,11 +39,34 @@ async def _task_not_found(request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": "Task not found"})
 
 
+_NON_FINITE_NAMES = {math.inf: "Infinity", -math.inf: "-Infinity"}
+
+
+def _json_safe(value: Any) -> Any:
+    """`value` with every NaN/Infinity, at any depth, replaced by its name as a string.
+
+    The request parser accepts them, but JSON (RFC 8259) has no way to write them back.
+    """
+    if isinstance(value, float) and not math.isfinite(value):
+        return _NON_FINITE_NAMES.get(value, "NaN")
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    return value
+
+
 class _AsciiJSONResponse(JSONResponse):
-    """JSON with non-ASCII escaped, so a lone surrogate echoed from the input still encodes."""
+    """Strict JSON for content echoing arbitrary input.
+
+    Non-ASCII is escaped so a lone surrogate still encodes; non-finite numbers become
+    strings, since JSON can't represent them.
+    """
 
     def render(self, content: Any) -> bytes:
-        return json.dumps(content, separators=(",", ":")).encode("ascii")
+        return json.dumps(_json_safe(content), separators=(",", ":"), allow_nan=False).encode(
+            "ascii"
+        )
 
 
 async def _validation_failed(request: Request, exc: RequestValidationError) -> JSONResponse:
