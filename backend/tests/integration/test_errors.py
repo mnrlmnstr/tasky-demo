@@ -1,4 +1,5 @@
 import logging
+import traceback
 from collections.abc import AsyncIterator, Callable, Iterator
 from typing import Any
 
@@ -7,6 +8,7 @@ import pytest
 from fastapi.responses import StreamingResponse
 from starlette.types import Message
 
+from app.api.errors import ResponseAborted
 from app.core.config import get_settings
 from app.main import create_app
 from tests.asgi import app_client
@@ -72,7 +74,7 @@ async def _fail_mid_stream() -> StreamingResponse:
 
 
 @pytest.mark.anyio
-async def test_error_after_response_started_is_logged_and_sends_no_second_response(
+async def test_error_after_response_started_is_logged_and_aborts_the_response(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     # Driven at the ASGI interface: httpx's test transport cannot represent a response
@@ -102,12 +104,19 @@ async def test_error_after_response_started_is_logged_and_sends_no_second_respon
         "server": ("test", 80),
         "client": ("test", 1234),
     }
-    with caplog.at_level(logging.ERROR, logger="app.api.errors"):
+    # The error reaches the server, which then drops the connection instead of ending the
+    # body as if it were complete; it carries no message, since the server logs it.
+    with (
+        caplog.at_level(logging.ERROR, logger="app.api.errors"),
+        pytest.raises(ResponseAborted) as raised,
+    ):
         await app(scope, receive, send)
 
     starts = [m["status"] for m in sent if m["type"] == "http.response.start"]
     assert starts == [200]
+    assert not any(m["type"] == "http.response.body" and not m.get("more_body") for m in sent)
     assert [r.getMessage() for r in caplog.records] == ["unhandled_exception"]
+    assert "s3cr3t" not in "".join(traceback.format_exception(raised.value))
 
 
 @pytest.fixture
@@ -153,14 +162,78 @@ async def test_task_routes_declare_422_with_field_errors_body(
     assert schema == {"$ref": "#/components/schemas/HTTPValidationError"}
 
 
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("post", "/api/v1/tasks"),
+        ("get", "/api/v1/tasks"),
+        ("get", "/api/v1/tasks/{task_id}"),
+        ("patch", "/api/v1/tasks/{task_id}"),
+        ("delete", "/api/v1/tasks/{task_id}"),
+    ],
+)
+async def test_task_routes_declare_500_with_detail_body(
+    openapi: dict[str, Any], method: str, path: str
+) -> None:
+    schema = _response_schema(openapi, method, path, "500")
+
+    assert schema == {"$ref": "#/components/schemas/ErrorDetail"}
+
+
+@pytest.mark.anyio
+async def test_task_update_schema_does_not_offer_null_for_required_fields(
+    openapi: dict[str, Any],
+) -> None:
+    properties = openapi["components"]["schemas"]["TaskUpdate"]["properties"]
+
+    assert properties["title"] == {
+        "type": "string",
+        "maxLength": 200,
+        "minLength": 1,
+        "title": "Title",
+    }
+    assert properties["status"] == {"$ref": "#/components/schemas/TaskStatus"}
+    assert properties["priority"] == {"$ref": "#/components/schemas/TaskPriority"}
+
+
 @pytest.fixture
 def app_logger() -> Iterator[logging.Logger]:
-    """The `app` logger, put back exactly as found after the test configures it."""
-    logger = logging.getLogger("app")
+    """The `app` and root loggers, put back exactly as found after the test configures them."""
+    logger, root = logging.getLogger("app"), logging.getLogger()
     handlers, level = list(logger.handlers), logger.level
+    root_handlers, root_level = list(root.handlers), root.level
     yield logger
     logger.handlers[:] = handlers
     logger.setLevel(level)
+    root.handlers[:] = root_handlers
+    root.setLevel(root_level)
+
+
+@pytest.mark.anyio
+async def test_library_warnings_use_the_same_readable_lines(
+    app_logger: logging.Logger, capsys: pytest.CaptureFixture[str]
+) -> None:
+    async with app_client(create_app()):
+        pass
+
+    async with app_client(create_app()):
+        logging.getLogger("sqlalchemy.pool").warning("pool_overflow", extra={"size": "5"})
+        logging.getLogger("sqlalchemy.pool").info("pool_checked")
+
+    [line] = capsys.readouterr().err.splitlines()
+    assert "WARNING sqlalchemy.pool pool_overflow size=5" in line
+
+
+@pytest.mark.anyio
+async def test_logging_leaves_the_server_access_log_alone(app_logger: logging.Logger) -> None:
+    access = logging.getLogger("uvicorn.access")
+    before = (list(access.handlers), access.level, access.propagate)
+
+    async with app_client(create_app()):
+        pass
+
+    assert (list(access.handlers), access.level, access.propagate) == before
 
 
 @pytest.fixture

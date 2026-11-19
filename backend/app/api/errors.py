@@ -1,7 +1,11 @@
+import json
 import logging
 import traceback
+from typing import Any
 
 from fastapi import FastAPI, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -23,6 +27,25 @@ def _traceback_without_message(exc: Exception) -> str:
 
 async def _task_not_found(request: Request, exc: Exception) -> JSONResponse:
     return JSONResponse(status_code=status.HTTP_404_NOT_FOUND, content={"detail": "Task not found"})
+
+
+class _AsciiJSONResponse(JSONResponse):
+    """JSON with non-ASCII escaped, so a lone surrogate echoed from the input still encodes."""
+
+    def render(self, content: Any) -> bytes:
+        return json.dumps(content, separators=(",", ":")).encode("ascii")
+
+
+async def _validation_failed(request: Request, exc: RequestValidationError) -> JSONResponse:
+    # FastAPI's own body, rendered so that any input it echoes can be encoded.
+    return _AsciiJSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        content={"detail": jsonable_encoder(exc.errors())},
+    )
+
+
+class ResponseAborted(Exception):
+    """An unhandled error struck after the response started; already logged."""
 
 
 class UnhandledErrorMiddleware:
@@ -60,14 +83,20 @@ class UnhandledErrorMiddleware:
                     "traceback": _traceback_without_message(exc),
                 },
             )
-            if not response_started:
-                response = JSONResponse(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    content={"detail": INTERNAL_ERROR_DETAIL},
-                )
-                await response(scope, receive, send)
+            if response_started:
+                # Too late for a 500: raising makes the server drop the connection, so the
+                # client can't take the cut-off body for a whole one. A fresh, message-less
+                # error keeps the original message out of the server's own log.
+                raise ResponseAborted from None
+            response = JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"detail": INTERNAL_ERROR_DETAIL},
+            )
+            await response(scope, receive, send)
 
 
-def register_exception_handlers(app: FastAPI) -> None:
+def install_error_handling(app: FastAPI) -> None:
+    """The TaskNotFound handler plus the middleware that turns any other error into a 500."""
     app.add_exception_handler(TaskNotFound, _task_not_found)
+    app.add_exception_handler(RequestValidationError, _validation_failed)
     app.add_middleware(UnhandledErrorMiddleware)

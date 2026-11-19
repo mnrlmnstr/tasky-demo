@@ -4,9 +4,8 @@ import uuid
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.enums import TaskStatus
 from app.models.task import Task
-from app.schemas.task import TaskCreate, TaskOrdering, TaskUpdate
+from app.schemas.task import TaskCreate, TaskListQuery, TaskOrdering, TaskUpdate
 from app.services.errors import TaskNotFound
 
 logger = logging.getLogger(__name__)
@@ -41,29 +40,20 @@ _ORDER_BY = {
 }
 
 
-async def list_tasks(
-    session: AsyncSession,
-    *,
-    status: TaskStatus | None = None,
-    search: str | None = None,
-    ordering: TaskOrdering = TaskOrdering.CREATED_AT_DESC,
-    page: int,
-    page_size: int,
-) -> tuple[list[Task], int]:
+async def list_tasks(session: AsyncSession, query: TaskListQuery) -> tuple[list[Task], int]:
     """One page of the matching tasks that aren't deleted, and how many match in all."""
     matching = select(Task).where(Task.deleted_at.is_(None))
-    if status is not None:
-        matching = matching.where(Task.status == status)
-    if search is not None:
+    if query.status is not None:
+        matching = matching.where(Task.status == query.status)
+    if query.search is not None:
         # autoescape makes %, _ and the escape character itself match literally.
-        matching = matching.where(Task.title.icontains(search, autoescape=True))
+        matching = matching.where(Task.title.icontains(query.search, autoescape=True))
     total = await session.scalar(select(func.count()).select_from(matching.subquery())) or 0
-    offset = (page - 1) * page_size
     # Past the end there is nothing to fetch, and a huge offset would overflow the database's int.
-    if offset >= total:
+    if query.offset >= total:
         return [], total
     rows = await session.scalars(
-        matching.order_by(*_ORDER_BY[ordering]).offset(offset).limit(page_size)
+        matching.order_by(*_ORDER_BY[query.ordering]).offset(query.offset).limit(query.page_size)
     )
     return list(rows), total
 

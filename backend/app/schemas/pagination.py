@@ -1,3 +1,6 @@
+import math
+from collections.abc import Sequence
+
 from pydantic import BaseModel
 
 
@@ -9,3 +12,14 @@ class Page[T](BaseModel):
     page: int
     page_size: int
     pages: int
+
+    @classmethod
+    def of(cls, items: Sequence[T], *, total: int, page: int, page_size: int) -> "Page[T]":
+        """The page holding `items`, with the page count worked out from `total`."""
+        return cls(
+            items=list(items),
+            total=total,
+            page=page,
+            page_size=page_size,
+            pages=math.ceil(total / page_size),
+        )

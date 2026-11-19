@@ -331,3 +331,93 @@ async def test_failed_change_of_unknown_task_logs_no_event(
         await rollback_client.delete(f"{TASKS}/{uuid.uuid4()}")
 
     assert [r for r in caplog.records if r.name == "app.services.tasks"] == []
+
+
+# Raw JSON so a lone surrogate (\ud800) reaches the server as JSON allows; httpx can't encode it.
+UNSTORABLE_TEXT = ["a\\u0000b", "a\\ud800b", "a\\udfffb"]
+UNREPRESENTABLE_DEADLINES = ["0001-01-01T00:00:00+01:00", "9999-12-31T23:30:00-01:00"]
+
+
+def _raw_json(field: str, escaped_value: str, title: str | None = "t") -> bytes:
+    fields = [f'"{field}": "{escaped_value}"']
+    if title is not None and field != "title":
+        fields.insert(0, f'"title": "{title}"')
+    return ("{" + ", ".join(fields) + "}").encode()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("field", ["title", "description"])
+@pytest.mark.parametrize("text", UNSTORABLE_TEXT)
+async def test_create_task_rejects_text_the_database_cannot_store(
+    rollback_client: httpx.AsyncClient, field: str, text: str
+) -> None:
+    response = await rollback_client.post(
+        TASKS, content=_raw_json(field, text), headers={"content-type": "application/json"}
+    )
+
+    assert response.status_code == 422
+    assert [error["loc"] for error in response.json()["detail"]] == [["body", field]]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("field", ["title", "description"])
+@pytest.mark.parametrize("text", UNSTORABLE_TEXT)
+async def test_update_task_rejects_text_the_database_cannot_store(
+    rollback_client: httpx.AsyncClient, field: str, text: str
+) -> None:
+    created = (await rollback_client.post(TASKS, json=FULL_TASK)).json()
+
+    response = await rollback_client.patch(
+        f"{TASKS}/{created['id']}",
+        content=_raw_json(field, text, title=None),
+        headers={"content-type": "application/json"},
+    )
+
+    assert response.status_code == 422
+    assert [error["loc"] for error in response.json()["detail"]] == [["body", field]]
+
+
+# A 422 echoes the rejected input, so it must be able to carry a lone surrogate too.
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("body", "loc"),
+    [
+        (b'{"title": "t", "status": "\\ud800"}', ["body", "status"]),
+        (b'{"title": "t", "\\ud800": "x"}', ["body"]),
+        (b'{"title": "t", "deadline": "\\ud800"}', ["body", "deadline"]),
+        (b'{"title": "' + b"\\ud800" * 201 + b'"}', ["body", "title"]),
+    ],
+)
+async def test_field_errors_on_input_with_a_lone_surrogate_are_422(
+    rollback_client: httpx.AsyncClient, body: bytes, loc: list[str]
+) -> None:
+    response = await rollback_client.post(
+        TASKS, content=body, headers={"content-type": "application/json"}
+    )
+
+    assert response.status_code == 422
+    assert [error["loc"] for error in response.json()["detail"]] == [loc]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("deadline", UNREPRESENTABLE_DEADLINES)
+async def test_create_task_rejects_a_deadline_outside_the_utc_range(
+    rollback_client: httpx.AsyncClient, deadline: str
+) -> None:
+    response = await rollback_client.post(TASKS, json={"title": "t", "deadline": deadline})
+
+    assert response.status_code == 422
+    assert [error["loc"] for error in response.json()["detail"]] == [["body", "deadline"]]
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("deadline", UNREPRESENTABLE_DEADLINES)
+async def test_update_task_rejects_a_deadline_outside_the_utc_range(
+    rollback_client: httpx.AsyncClient, deadline: str
+) -> None:
+    created = (await rollback_client.post(TASKS, json=FULL_TASK)).json()
+
+    response = await rollback_client.patch(f"{TASKS}/{created['id']}", json={"deadline": deadline})
+
+    assert response.status_code == 422
+    assert [error["loc"] for error in response.json()["detail"]] == [["body", "deadline"]]

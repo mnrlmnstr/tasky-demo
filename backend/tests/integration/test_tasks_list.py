@@ -250,6 +250,28 @@ async def test_invalid_query_parameters_return_422(
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("query", [b"search=a%00b", b"search=%00", b"search=a%ED%A0%80b"])
+async def test_search_rejects_text_no_title_can_hold(
+    rollback_client: httpx.AsyncClient, query: bytes
+) -> None:
+    response = await rollback_client.get(f"{TASKS}?{query.decode()}")
+
+    assert response.status_code in (200, 422), response.text
+    if response.status_code == 422:
+        assert [error["loc"] for error in response.json()["detail"]] == [["query", "search"]]
+
+
+@pytest.mark.anyio
+async def test_search_with_a_nul_character_is_a_field_error(
+    rollback_client: httpx.AsyncClient,
+) -> None:
+    response = await rollback_client.get(TASKS, params={"search": "a\u0000"})
+
+    assert response.status_code == 422
+    assert [error["loc"] for error in response.json()["detail"]] == [["query", "search"]]
+
+
+@pytest.mark.anyio
 async def test_page_size_bounds_are_inclusive(
     rollback_client: httpx.AsyncClient, add_task: AddTask
 ) -> None:

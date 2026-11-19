@@ -1,7 +1,8 @@
-"""Stdlib logging for the app's own loggers (`app.*`): plain lines that show `extra` fields.
+"""Stdlib logging: plain readable lines that show `extra` fields, for the app and its libraries.
 
-Only the `app` logger gets a handler. Uvicorn configures its own loggers (including the
-access log) and leaves the root logger alone, so the two never print the same record.
+The handler sits on the root logger, so library records (SQLAlchemy, asyncpg) that propagate
+share the format. Uvicorn's own loggers, the access log among them, have their own handlers
+and don't propagate, so no record is printed twice.
 """
 
 import logging
@@ -31,22 +32,23 @@ class ExtraFieldsFormatter(logging.Formatter):
         return " ".join([line, *extra])
 
 
-class _StderrHandler(logging.StreamHandler):
+class _StderrHandler(logging.Handler):
     """Writes to whatever `sys.stderr` is at the time of each record, not at creation."""
 
-    def __init__(self) -> None:
-        logging.Handler.__init__(self)
-
-    @property
-    def stream(self):  # type: ignore[override]
-        return sys.stderr
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            sys.stderr.write(self.format(record) + "\n")
+            sys.stderr.flush()
+        except Exception:
+            self.handleError(record)
 
 
 def configure_logging(settings: Settings) -> None:
-    """Set up the `app` logger; calling it again only updates the level."""
-    logger = logging.getLogger(APP_LOGGER)
-    logger.setLevel(logging.DEBUG if settings.debug else logging.INFO)
-    if not any(isinstance(handler, _StderrHandler) for handler in logger.handlers):
+    """Set up the root handler and the `app` level; calling it again only updates the level."""
+    root = logging.getLogger()
+    if not any(isinstance(handler, _StderrHandler) for handler in root.handlers):
         handler = _StderrHandler()
         handler.setFormatter(ExtraFieldsFormatter())
-        logger.addHandler(handler)
+        root.addHandler(handler)
+    # Libraries keep the root's level (WARNING by default); the app's own events go lower.
+    logging.getLogger(APP_LOGGER).setLevel(logging.DEBUG if settings.debug else logging.INFO)
