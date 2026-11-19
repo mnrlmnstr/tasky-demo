@@ -55,25 +55,57 @@ class TaskOrdering(StrEnum):
 class TaskListQuery(BaseModel):
     """What a task list asks for: filters, order and which page."""
 
-    status: TaskStatus | None = None
-    search: Text | None = None
-    ordering: TaskOrdering = TaskOrdering.CREATED_AT_DESC
-    page: int = Field(default=1, ge=1)
-    page_size: int = Field(default=20, ge=1, le=100)
+    status: TaskStatus | None = Field(
+        default=None, description="Only tasks with this status.", examples=["in_progress"]
+    )
+    search: Text | None = Field(
+        default=None,
+        description="Only tasks whose title contains this text, ignoring case.",
+        examples=["report"],
+    )
+    ordering: TaskOrdering = Field(
+        default=TaskOrdering.CREATED_AT_DESC,
+        description=(
+            "Sort by `created_at` or `deadline`; a leading `-` sorts descending. "
+            "Tasks without a deadline come last either way."
+        ),
+        examples=["deadline"],
+    )
+    page: int = Field(default=1, ge=1, description="Which page to return, from 1.", examples=[1])
+    page_size: int = Field(
+        default=20, ge=1, le=100, description="How many tasks per page (1 to 100).", examples=[20]
+    )
 
     @property
     def offset(self) -> int:
         return (self.page - 1) * self.page_size
 
 
+_TITLE = "What the task is, 1 to 200 characters; surrounding whitespace is trimmed."
+_DESCRIPTION = "Free-text details."
+_STATUS = "Where the task stands."
+_PRIORITY = "How urgent the task is."
+_DEADLINE = "When the task is due, with a timezone; returned in UTC."
+
+_TITLE_EXAMPLE = "Prepare the quarterly report"
+_DESCRIPTION_EXAMPLE = "Collect the numbers from finance and draft the summary."
+_DEADLINE_EXAMPLE = "2026-12-01T17:00:00Z"
+
+
 class TaskCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    title: Title
-    description: Text | None = None
-    status: TaskStatus = TaskStatus.TODO
-    priority: TaskPriority = TaskPriority.MEDIUM
-    deadline: Deadline | None = None
+    title: Title = Field(description=_TITLE, examples=[_TITLE_EXAMPLE])
+    description: Text | None = Field(
+        default=None, description=_DESCRIPTION, examples=[_DESCRIPTION_EXAMPLE]
+    )
+    status: TaskStatus = Field(default=TaskStatus.TODO, description=_STATUS, examples=["todo"])
+    priority: TaskPriority = Field(
+        default=TaskPriority.MEDIUM, description=_PRIORITY, examples=["high"]
+    )
+    deadline: Deadline | None = Field(
+        default=None, description=_DEADLINE, examples=[_DEADLINE_EXAMPLE]
+    )
 
 
 def _without_null(schema: dict[str, Any]) -> None:
@@ -91,11 +123,28 @@ class TaskUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     # Optional so they can be left out; null is rejected below and kept out of the schema.
-    title: Title | None = Field(default=None, json_schema_extra=_without_null)
-    description: Text | None = None
-    status: TaskStatus | None = Field(default=None, json_schema_extra=_without_null)
-    priority: TaskPriority | None = Field(default=None, json_schema_extra=_without_null)
-    deadline: Deadline | None = None
+    title: Title | None = Field(
+        default=None,
+        description=_TITLE,
+        examples=[_TITLE_EXAMPLE],
+        json_schema_extra=_without_null,
+    )
+    description: Text | None = Field(
+        default=None,
+        description=f"{_DESCRIPTION} Send `null` to clear it.",
+        examples=[_DESCRIPTION_EXAMPLE],
+    )
+    status: TaskStatus | None = Field(
+        default=None, description=_STATUS, examples=["done"], json_schema_extra=_without_null
+    )
+    priority: TaskPriority | None = Field(
+        default=None, description=_PRIORITY, examples=["low"], json_schema_extra=_without_null
+    )
+    deadline: Deadline | None = Field(
+        default=None,
+        description=f"{_DEADLINE} Send `null` to clear it.",
+        examples=[_DEADLINE_EXAMPLE],
+    )
 
     # Runs only on values that were sent (defaults aren't validated), so omitting is fine.
     @field_validator("title", "status", "priority")
@@ -109,11 +158,19 @@ class TaskUpdate(BaseModel):
 class TaskRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: uuid.UUID
-    title: str
-    description: str | None
-    status: TaskStatus
-    priority: TaskPriority
-    deadline: datetime | None
-    created_at: datetime
-    updated_at: datetime
+    id: uuid.UUID = Field(
+        description="The task's id.", examples=["3f2b8c1e-6d4a-4f7e-9a51-2c8d7e0b4a19"]
+    )
+    title: str = Field(description="What the task is.", examples=[_TITLE_EXAMPLE])
+    description: str | None = Field(description=_DESCRIPTION, examples=[_DESCRIPTION_EXAMPLE])
+    status: TaskStatus = Field(description=_STATUS, examples=["in_progress"])
+    priority: TaskPriority = Field(description=_PRIORITY, examples=["medium"])
+    deadline: datetime | None = Field(
+        description="When the task is due, in UTC.", examples=[_DEADLINE_EXAMPLE]
+    )
+    created_at: datetime = Field(
+        description="When the task was created, in UTC.", examples=["2026-11-02T09:30:00Z"]
+    )
+    updated_at: datetime = Field(
+        description="When the task last changed, in UTC.", examples=["2026-11-03T14:05:00Z"]
+    )

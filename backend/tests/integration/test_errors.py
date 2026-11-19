@@ -213,7 +213,10 @@ async def test_422_echoes_non_finite_numbers_as_strings_at_any_depth(
 async def test_task_update_schema_does_not_offer_null_for_required_fields(
     openapi: dict[str, Any],
 ) -> None:
-    properties = openapi["components"]["schemas"]["TaskUpdate"]["properties"]
+    properties = {
+        name: {key: value for key, value in field.items() if key not in {"description", "examples"}}
+        for name, field in openapi["components"]["schemas"]["TaskUpdate"]["properties"].items()
+    }
 
     assert properties["title"] == {
         "type": "string",
