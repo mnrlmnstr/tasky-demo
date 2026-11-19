@@ -6,11 +6,6 @@ export default {
     settings: 'Settings',
     newTask: 'New task',
   },
-  apiStatus: {
-    loading: 'Checking API…',
-    healthy: 'API is healthy',
-    failed: 'API is unavailable',
-  },
   errors: {
     network: 'Could not reach the server. Check your connection and try again.',
     server: 'Something went wrong on the server. Please try again.',
