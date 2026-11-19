@@ -42,9 +42,11 @@ const uk: typeof en = {
   toolbar: {
     searchLabel: 'Пошук задач',
     searchPlaceholder: 'Пошук за назвою',
+    clearSearch: 'Очистити пошук',
     statusLabel: 'Статус',
     statusAll: 'Усі',
     sortLabel: 'Сортування',
+    sortBy: 'Сортування: {sort}',
     sort: {
       newest: 'Спочатку нові',
       oldest: 'Спочатку старі',

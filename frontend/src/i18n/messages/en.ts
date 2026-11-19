@@ -39,9 +39,11 @@ export default {
   toolbar: {
     searchLabel: 'Search tasks',
     searchPlaceholder: 'Search by title',
+    clearSearch: 'Clear search',
     statusLabel: 'Status',
     statusAll: 'All',
     sortLabel: 'Sort',
+    sortBy: 'Sort: {sort}',
     sort: {
       newest: 'Newest first',
       oldest: 'Oldest first',
