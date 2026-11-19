@@ -62,9 +62,12 @@ def test_export_writes_the_same_bytes_every_time(tmp_path: Path) -> None:
 
 
 def test_export_targets_the_spec_file_next_to_the_frontend_package_by_default() -> None:
+    # Asserted on the path alone: the backend image holds no frontend directory.
+    backend_package = Path(__file__).resolve().parents[2]
+
     assert DEFAULT_OUTPUT.name == "openapi.json"
-    assert (DEFAULT_OUTPUT.parent / "package.json").is_file()
-    assert (DEFAULT_OUTPUT.parent / "orval.config.ts").is_file()
+    assert DEFAULT_OUTPUT.parent.name == "frontend"
+    assert DEFAULT_OUTPUT.parent.parent == backend_package.parent
 
 
 def _query_parameter(name: str) -> dict[str, Any]:
