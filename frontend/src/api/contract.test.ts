@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { getListTasksUrl, listTasks } from './generated/client'
+import { createTask, getListTasksUrl, listTasks } from './generated/client'
 import { apiFetch } from './http'
+import { latestOnly } from './latestOnly'
 
 function fakeFetch(implementation: typeof fetch) {
   const fetchFake = vi.fn(implementation)
@@ -46,5 +47,59 @@ describe('API client contract', () => {
     await listTasks({ status: null, search: null, page: 1 } as never)
 
     expect(fetchFake).toHaveBeenCalledWith('/api/v1/tasks?page=1', expect.objectContaining({ method: 'GET' }))
+  })
+
+  it('leaves a filter that is undefined out of the list query string', () => {
+    expect(getListTasksUrl({ status: undefined, search: undefined, page: 2 })).toBe('/api/v1/tasks?page=2')
+  })
+
+  it('reports a connection lost while a validation body was being read as network, not validation', async () => {
+    fakeFetch(async () => brokenBodyResponse(422))
+
+    await expect(createTask({ title: '' })).rejects.toMatchObject({ name: 'ApiError', kind: 'network' })
+  })
+
+  it('reports a connection lost under a signal that was never aborted as network', async () => {
+    fakeFetch(async () => brokenBodyResponse(200))
+
+    const request = listTasks({ page: 1 }, { signal: new AbortController().signal })
+
+    await expect(request).rejects.toMatchObject({ name: 'ApiError', kind: 'network' })
+  })
+
+  it('rejects a list call superseded while its body was still downloading as aborted', async () => {
+    // Headers arrive at once; the body stays open until the request's signal aborts.
+    fakeFetch(async (_input, init) => {
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          init?.signal?.addEventListener('abort', () => controller.error(init.signal?.reason))
+        },
+      })
+      return new Response(body, { status: 200 })
+    })
+    const loadPage = latestOnly((signal: AbortSignal, page: number) => listTasks({ page }, { signal }))
+
+    const first = loadPage(1).then(
+      () => 'resolved',
+      (error: unknown) => error,
+    )
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    void loadPage(2).catch(() => undefined)
+
+    expect(await first).toMatchObject({ name: 'ApiError', kind: 'aborted' })
+  })
+
+  it('aborts the call in flight when the next call fails before it is sent', async () => {
+    const signals: AbortSignal[] = []
+    const load = latestOnly((signal: AbortSignal, fail: boolean) => {
+      signals.push(signal)
+      if (fail) throw new Error('could not build the request')
+      return new Promise<void>(() => undefined)
+    })
+
+    void load(false)
+    expect(() => load(true)).toThrow('could not build the request')
+
+    expect(signals[0].aborted).toBe(true)
   })
 })
