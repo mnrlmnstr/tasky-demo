@@ -11,7 +11,7 @@ router = APIRouter(tags=["health"], responses=INTERNAL_ERROR)
 
 
 @router.get("/health", summary="Check health")
-async def health(
+async def get_health(
     response: Response, session: Annotated[AsyncSession, Depends(get_session)]
 ) -> dict[str, str]:
     """`200` with `{"status": "ok"}` when the database answers, otherwise `503` with
