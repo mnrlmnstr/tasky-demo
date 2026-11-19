@@ -1,5 +1,6 @@
 """Counterexamples against issues #4-#7 (tasks API), through the HTTP interface."""
 
+import json
 from datetime import datetime
 
 import httpx
@@ -155,3 +156,31 @@ async def test_patch_rejects_read_only_fields(
     )
 
     assert response.status_code == 422
+
+
+def _reject_non_json_constant(name: str) -> None:
+    raise ValueError(f"{name} is not valid JSON")
+
+
+# Agreed rule: errors use FastAPI's standard shape, a 422 field-error list. The request
+# parser accepts NaN/Infinity, and the 422 renderer echoes the input back; the body must
+# still be valid JSON (RFC 8259 has no NaN or Infinity).
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b'{"title": NaN}',
+        b'{"title": "t", "priority": Infinity}',
+        b'{"title": "t", "status": -Infinity}',
+    ],
+)
+async def test_422_body_echoing_non_finite_number_is_valid_json(
+    rollback_client: httpx.AsyncClient, raw: bytes
+) -> None:
+    response = await rollback_client.post(
+        TASKS, content=raw, headers={"content-type": "application/json"}
+    )
+
+    assert response.status_code == 422
+    body = json.loads(response.text, parse_constant=_reject_non_json_constant)
+    assert isinstance(body["detail"], list)
