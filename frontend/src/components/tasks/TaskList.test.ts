@@ -27,6 +27,11 @@ function titles(list: VueWrapper): string[] {
   return list.findAll('[data-testid="task-title"]').map((title) => title.text())
 }
 
+// Intl groups thousands with a no-break space in Ukrainian.
+function plainText(text: string): string {
+  return text.replace(/\s+/g, ' ').trim()
+}
+
 function clearFiltersButton(list: VueWrapper) {
   return list.findAll('button').find((button) => button.text() === 'Clear filters')
 }
@@ -70,7 +75,7 @@ describe('first load', () => {
     await api.respondTo(0, pageOf(['Write the report', 'Call the bank', 'Book a flight']))
 
     expect(titles(list)).toEqual(['Write the report', 'Call the bank', 'Book a flight'])
-    expect(list.find('[role="status"]').exists()).toBe(false)
+    expect(list.find('[aria-hidden="true"].animate-pulse').exists()).toBe(false)
   })
 
   it('lists every task as an item of one list', async () => {
@@ -87,17 +92,86 @@ describe('total count', () => {
   it.each([
     ['en', 1, '1 task'],
     ['en', 42, '42 tasks'],
+    ['en', 1234, '1,234 tasks'],
     ['uk', 1, '1 задача'],
     ['uk', 3, '3 задачі'],
     ['uk', 5, '5 задач'],
     ['uk', 21, '21 задача'],
+    ['uk', 1234, '1 234 задачі'],
+    ['uk', 1235, '1 235 задач'],
   ] as const)('in %s, a total of %i reads "%s"', async (locale, total, expected) => {
     const api = fakeTasksApi()
     const list = openList({ locale })
 
     await api.respondTo(0, pageOf(['Write the report'], { total }))
 
-    expect(list.get('[data-testid="task-total"]').text()).toBe(expected)
+    expect(plainText(list.get('[data-testid="task-total"]').text())).toBe(expected)
+  })
+})
+
+// One live region that is always there: a screen reader only announces changes to a region it already knows.
+describe('announcements', () => {
+  it('announces politely, from the same element, through loading and loaded', async () => {
+    const api = fakeTasksApi()
+    const list = openList()
+    const region = list.get('[role="status"]')
+    expect(region.text()).toBe('Loading tasks…')
+
+    await api.respondTo(0, pageOf(['Write the report', 'Call the bank'], { total: 1234, pages: 62 }))
+
+    expect(list.findAll('[role="status"]')).toHaveLength(1)
+    expect(list.get('[role="status"]').element).toBe(region.element)
+    expect(region.text()).toBe('1,234 tasks')
+  })
+
+  it('announces that the tasks are being updated while another page loads, then the count again', async () => {
+    const api = fakeTasksApi()
+    const list = openList()
+    const region = list.get('[role="status"]')
+    await api.respondTo(0, pageOf(['Write the report'], { total: 40, pages: 2 }))
+
+    useListViewStore().page = 2
+    await flushPromises()
+    expect(region.text()).toBe('Updating tasks…')
+
+    await api.respondTo(1, pageOf(['Book a flight'], { total: 41, page: 2, pages: 3 }))
+    expect(region.text()).toBe('41 tasks')
+    expect(list.get('[role="status"]').element).toBe(region.element)
+  })
+
+  it('announces the update in Ukrainian when the language is Ukrainian', async () => {
+    const api = fakeTasksApi()
+    const list = openList({ locale: 'uk' })
+    await api.respondTo(0, pageOf(['Write the report'], { total: 40, pages: 2 }))
+
+    useListViewStore().page = 2
+    await flushPromises()
+
+    expect(list.get('[role="status"]').text()).toBe('Оновлюємо задачі…')
+  })
+
+  it.each([
+    ['no filter is set', '/', 'No tasks yet'],
+    ['a filter is set', '/?status=done', 'No tasks match your filters'],
+  ])('announces that there is nothing to show when %s', async (_name, address, message) => {
+    const api = fakeTasksApi()
+    const list = openList({ address })
+
+    await api.respondTo(0, pageOf([]))
+
+    expect(list.get('[role="status"]').text()).toBe(message)
+  })
+
+  it('leaves a failure to the alert, so it is announced once', async () => {
+    const api = fakeTasksApi()
+    const list = openList()
+    const region = list.get('[role="status"]')
+
+    await api.failWith(0, 500)
+
+    expect(list.get('[role="status"]').element).toBe(region.element)
+    expect(region.text()).toBe('')
+    expect(list.get('[role="alert"] p').text()).toBe('Something went wrong on the server. Please try again.')
   })
 })
 
@@ -113,7 +187,7 @@ describe('reloading', () => {
     expect(titles(list)).toEqual(['Write the report', 'Call the bank'])
     expect(list.get('ul').attributes('aria-busy')).toBe('true')
     expect(list.get('ul').classes()).toContain('opacity-50')
-    expect(list.find('[role="status"]').exists()).toBe(false)
+    expect(list.find('[aria-hidden="true"].animate-pulse').exists()).toBe(false)
   })
 
   it('shows the new tasks at full strength once the other page arrives', async () => {
@@ -155,7 +229,7 @@ describe('nothing to show', () => {
     expect(list.get('[data-testid="task-list-empty"]').text()).toBe('No tasks yet')
     expect(clearFiltersButton(list)).toBeUndefined()
     expect(list.find('[data-testid="task-total"]').exists()).toBe(false)
-    expect(list.find('[role="status"]').exists()).toBe(false)
+    expect(list.find('[aria-hidden="true"].animate-pulse').exists()).toBe(false)
   })
 
   it('says no tasks match and offers to clear the filters when a filter is set', async () => {
@@ -219,7 +293,7 @@ describe('errors', () => {
     else await api.failWith(0, failure)
 
     expect(list.get('[role="alert"] p').text()).toBe(message)
-    expect(list.find('[role="status"]').exists()).toBe(false)
+    expect(list.find('[aria-hidden="true"].animate-pulse').exists()).toBe(false)
     expect(list.find('[data-testid="task-list-empty"]').exists()).toBe(false)
   })
 
@@ -313,7 +387,66 @@ describe('pages', () => {
 
     expect(api.queries[1]).toEqual({ ordering: '-created_at', page: '2', page_size: '20' })
     expect(location.search).toBe('?page=2')
+  })
+
+  it('names the page of the tasks on screen: the old one until the next page arrives', async () => {
+    const api = fakeTasksApi()
+    const list = openList()
+    await api.respondTo(0, pageOf(['Write the report'], { total: 45, pages: 3 }))
+
+    await list.get('button[aria-label="Next"]').trigger('click')
+    await flushPromises()
+    expect(list.get('[data-testid="page-position"]').text()).toBe('Page 1 of 3')
+
+    await api.respondTo(1, pageOf(['Book a flight'], { total: 45, page: 2, pages: 3 }))
     expect(list.get('[data-testid="page-position"]').text()).toBe('Page 2 of 3')
+  })
+
+  it('still names the page of the tasks on screen after the next page failed to load', async () => {
+    const api = fakeTasksApi()
+    const list = openList()
+    await api.respondTo(0, pageOf(['Write the report'], { total: 45, pages: 3 }))
+    await list.get('button[aria-label="Next"]').trigger('click')
+    await flushPromises()
+
+    await api.loseConnection(1)
+
+    expect(titles(list)).toEqual(['Write the report'])
+    expect(list.get('[data-testid="page-position"]').text()).toBe('Page 1 of 3')
+    expect(list.get('[data-testid="task-total"]').text()).toBe('45 tasks')
+    expect(list.get('button[aria-label="Previous"]').attributes('aria-disabled')).toBe('true')
+  })
+
+  it('asks for the page that failed again when "Next" is pressed once more', async () => {
+    const api = fakeTasksApi()
+    const list = openList()
+    await api.respondTo(0, pageOf(['Write the report'], { total: 45, pages: 3 }))
+    await list.get('button[aria-label="Next"]').trigger('click')
+    await flushPromises()
+    await api.loseConnection(1)
+
+    await list.get('button[aria-label="Next"]').trigger('click')
+    await flushPromises()
+
+    expect(api.queries).toHaveLength(3)
+    expect(api.queries[2]).toEqual({ ordering: '-created_at', page: '2', page_size: '20' })
+
+    await api.respondTo(2, pageOf(['Book a flight'], { total: 45, page: 2, pages: 3 }))
+    expect(list.get('[data-testid="page-position"]').text()).toBe('Page 2 of 3')
+    expect(list.find('[role="alert"]').exists()).toBe(false)
+  })
+
+  it('asks once for the next page however many times "Next" is pressed while it loads', async () => {
+    const api = fakeTasksApi()
+    const list = openList()
+    await api.respondTo(0, pageOf(['Write the report'], { total: 45, pages: 3 }))
+
+    await list.get('button[aria-label="Next"]').trigger('click')
+    await flushPromises()
+    await list.get('button[aria-label="Next"]').trigger('click')
+    await flushPromises()
+
+    expect(api.queries).toHaveLength(2)
   })
 
   it('goes back a page when "Previous" is pressed', async () => {
@@ -333,7 +466,7 @@ describe('pages', () => {
 
     await api.respondTo(0, pageOf(['Write the report'], { total: 45, page: 3, pages: 3 }))
 
-    expect(list.get('button[aria-label="Next"]').attributes('disabled')).toBeDefined()
-    expect(list.get('button[aria-label="Previous"]').attributes('disabled')).toBeUndefined()
+    expect(list.get('button[aria-label="Next"]').attributes('aria-disabled')).toBe('true')
+    expect(list.get('button[aria-label="Previous"]').attributes('aria-disabled')).toBeUndefined()
   })
 })

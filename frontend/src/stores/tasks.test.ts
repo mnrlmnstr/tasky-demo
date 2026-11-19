@@ -1,7 +1,7 @@
-import { flushPromises } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick } from 'vue'
+import { defineComponent, nextTick } from 'vue'
 
 import type { PageTaskRead, TaskRead } from '../api/generated/client'
 import { useListViewStore } from './listView'
@@ -24,6 +24,14 @@ function loadStores() {
   setActivePinia(pinia)
   return { tasks: useTasksStore(), view: useListViewStore(), settings: useSettingsStore() }
 }
+
+// Starts the list from a component's setup, the way App.vue does.
+const StartsTheList = defineComponent({
+  setup() {
+    useTasksStore().start()
+    return () => null
+  },
+})
 
 function task(title: string): TaskRead {
   return {
@@ -82,6 +90,11 @@ function fakeApi({ abortsInTime = true } = {}) {
     },
     async loseConnection(index: number) {
       pending[index].reject(new TypeError('Failed to fetch'))
+      await flushPromises()
+    },
+    // Not a response at all, so reading it throws something the API layer never throws on purpose.
+    async breakOn(index: number) {
+      pending[index].resolve(null as unknown as Response)
       await flushPromises()
     },
   }
@@ -240,6 +253,42 @@ describe('following the view', () => {
     expect(api.queries).toHaveLength(1)
   })
 
+  it('keeps following the view after the page that started it is gone', async () => {
+    const api = fakeApi()
+    pinia = createPinia()
+    const starter = mount(StartsTheList, { global: { plugins: [pinia] } })
+    const tasks = useTasksStore()
+    const view = useListViewStore()
+    await api.respondTo(0, pageOf(['Old'], { total: 60, pages: 3 }))
+
+    starter.unmount()
+    view.status = 'done'
+    await nextTick()
+
+    expect(api.queries).toHaveLength(2)
+    expect(api.queries[1]).toMatchObject({ status: 'done' })
+    await api.respondTo(1, pageOf(['Done task']))
+    expect(titlesOf(tasks.items)).toEqual(['Done task'])
+  })
+
+  it('keeps following the page size after the page that started it is gone', async () => {
+    addressIs('/?page=3')
+    const api = fakeApi()
+    pinia = createPinia()
+    const starter = mount(StartsTheList, { global: { plugins: [pinia] } })
+    const view = useListViewStore()
+    const settings = useSettingsStore()
+    await api.respondTo(0, pageOf(['Old'], { total: 60, page: 3, pages: 3 }))
+
+    starter.unmount()
+    settings.pageSize = 50
+    await nextTick()
+
+    expect(view.page).toBe(1)
+    expect(api.queries).toHaveLength(2)
+    expect(api.queries[1]).toEqual({ ordering: '-created_at', page: '1', page_size: '50' })
+  })
+
   it('does not follow the view before it is started', async () => {
     const api = fakeApi()
     const { view, settings } = loadStores()
@@ -307,6 +356,71 @@ describe('following the view', () => {
     expect(api.queries).toHaveLength(2)
     expect(tasks.status).toBe('loading')
     expect(tasks.error).toBeNull()
+  })
+})
+
+describe('the page of the rows it holds', () => {
+  it('is the first page before anything has arrived', () => {
+    addressIs('/?page=3')
+    fakeApi()
+    const { tasks } = loadStores()
+    expect(tasks.page).toBe(1)
+
+    tasks.start()
+
+    expect(tasks.page).toBe(1)
+  })
+
+  it('is the page that was asked for once it arrives', async () => {
+    addressIs('/?page=3')
+    const api = fakeApi()
+    const { tasks } = loadStores()
+    tasks.start()
+
+    await api.respondTo(0, pageOf(['Row'], { total: 60, page: 3, pages: 3 }))
+
+    expect(tasks.page).toBe(3)
+  })
+
+  it('stays the page of the rows on screen while another page loads, then follows', async () => {
+    const api = fakeApi()
+    const { tasks, view } = loadStores()
+    tasks.start()
+    await api.respondTo(0, pageOf(['Old'], { total: 60, pages: 3 }))
+
+    view.page = 2
+    await nextTick()
+    expect(tasks.page).toBe(1)
+
+    await api.respondTo(1, pageOf(['New'], { total: 60, page: 2, pages: 3 }))
+    expect(tasks.page).toBe(2)
+  })
+
+  it('stays the page of the rows on screen when the other page fails to load', async () => {
+    const api = fakeApi()
+    const { tasks, view } = loadStores()
+    tasks.start()
+    await api.respondTo(0, pageOf(['Old'], { total: 60, pages: 3 }))
+    view.page = 2
+    await nextTick()
+
+    await api.loseConnection(1)
+
+    expect(view.page).toBe(2)
+    expect(tasks.page).toBe(1)
+    expect(titlesOf(tasks.items)).toEqual(['Old'])
+  })
+
+  it('is the last page after a move back from a page past the end', async () => {
+    addressIs('/?page=9')
+    const api = fakeApi()
+    const { tasks } = loadStores()
+    tasks.start()
+    await api.respondTo(0, pageOf([], { total: 45, page: 9, pages: 3 }))
+
+    await api.respondTo(1, pageOf(['Last one'], { total: 45, page: 3, pages: 3 }))
+
+    expect(tasks.page).toBe(3)
   })
 })
 
@@ -443,8 +557,75 @@ describe('landing on a page past the end', () => {
     expect(api.queries).toHaveLength(3)
   })
 
+  it('never stays loading when the last page it moved to fails to load', async () => {
+    addressIs('/?page=9')
+    const api = fakeApi()
+    const { tasks } = loadStores()
+    tasks.start()
+    await api.respondTo(0, PAST_THE_END)
+
+    await api.failWith(1, 500)
+
+    expect(tasks.status).toBe('failed')
+    expect(tasks.error).toBe('server')
+  })
+
+  it('asks for the last page itself, even when the page that started the list is gone', async () => {
+    addressIs('/?page=9')
+    const api = fakeApi()
+    pinia = createPinia()
+    const starter = mount(StartsTheList, { global: { plugins: [pinia] } })
+    const tasks = useTasksStore()
+
+    starter.unmount()
+    await api.respondTo(0, PAST_THE_END)
+
+    expect(api.queries).toHaveLength(2)
+    expect(api.queries[1]).toMatchObject({ page: '3' })
+    await api.respondTo(1, pageOf(['Last one'], { total: 45, page: 3, pages: 3 }))
+    expect(tasks.status).toBe('ready')
+  })
+
   it.each([
-    ['nothing matches at all', '/?page=2', pageOf([], { total: 0, page: 2, pages: 0 })],
+    ['nothing matches', '/?page=5', '/'],
+    ['nothing matches the filter', '/?status=done&page=5', '/?status=done'],
+  ])('goes to page 1 with no further request when %s', async (_case, url, corrected) => {
+    addressIs(url)
+    const api = fakeApi()
+    const { tasks, view } = loadStores()
+    tasks.start()
+    const entries = history.length
+
+    await api.respondTo(0, pageOf([], { total: 0, page: 5, pages: 0 }))
+    await nextTick()
+    await flushPromises()
+
+    expect(view.page).toBe(1)
+    expect(address()).toBe(corrected)
+    expect(history.length).toBe(entries)
+    expect(tasks.status).toBe('ready')
+    expect(tasks.items).toEqual([])
+    expect(tasks.total).toBe(0)
+    expect(tasks.page).toBe(1)
+    expect(api.queries).toHaveLength(1)
+  })
+
+  it('still asks again when the view changes after it went to page 1 on an empty result', async () => {
+    addressIs('/?status=done&page=5')
+    const api = fakeApi()
+    const { tasks, view } = loadStores()
+    tasks.start()
+    await api.respondTo(0, pageOf([], { total: 0, page: 5, pages: 0 }))
+    await nextTick()
+
+    view.status = 'all'
+    await nextTick()
+
+    expect(api.queries).toHaveLength(2)
+    expect(api.queries[1]).toEqual({ ordering: '-created_at', page: '1', page_size: '20' })
+  })
+
+  it.each([
     ['the page is within the pages there are', '/?page=2', pageOf([], { total: 45, page: 2, pages: 3 })],
     ['the page has rows', '/?page=4', pageOf(['Row'], { total: 45, page: 4, pages: 3 })],
   ])('shows the answer as it is when %s', async (_case, url, answer) => {
@@ -480,6 +661,17 @@ describe('failing to load', () => {
     expect(tasks.status).toBe('failed')
     expect(tasks.error).toBe(kind)
     expect(tasks.items).toEqual([])
+  })
+
+  it('reports a server error when the request fails with something that is not an API error', async () => {
+    const api = fakeApi()
+    const { tasks } = loadStores()
+    tasks.start()
+
+    await api.breakOn(0)
+
+    expect(tasks.status).toBe('failed')
+    expect(tasks.error).toBe('server')
   })
 
   it('keeps the rows it had when a reload fails', async () => {

@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
+import { oneOf, readStored, writeStored } from './storage'
+
 export const SETTINGS_STORAGE_KEY = 'tasky:settings'
 
 export const THEMES = ['light', 'dark', 'system'] as const
@@ -26,35 +28,13 @@ interface Settings {
 
 type StoredSettings = Partial<Record<keyof Settings, unknown>> | null
 
-// Storage can be absent, blocked or hold anything another script or an older version wrote; all of that reads as "nothing saved".
-function readStoredSettings(): StoredSettings {
-  try {
-    return JSON.parse(localStorage.getItem(SETTINGS_STORAGE_KEY) ?? 'null') as StoredSettings
-  } catch {
-    return null
-  }
-}
-
-function oneOf<T>(allowed: readonly T[], value: unknown, fallback: T): T {
-  return allowed.find((candidate) => candidate === value) ?? fallback
-}
-
 // Each field is checked on its own, so one bad value does not throw away the others.
 function loadSettings(): Settings {
-  const stored = readStoredSettings()
+  const stored = readStored(SETTINGS_STORAGE_KEY) as StoredSettings
   return {
     theme: oneOf(THEMES, stored?.theme, 'system'),
     pageSize: oneOf(PAGE_SIZES, stored?.pageSize, 20),
     locale: oneOf(LOCALES, stored?.locale, browserLocale()),
-  }
-}
-
-// Private browsing, a full quota or a blocked storage must not break the app: the setting then lasts for the visit only.
-function saveSettings(settings: Settings): void {
-  try {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings))
-  } catch {
-    return
   }
 }
 
@@ -77,7 +57,10 @@ export const useSettingsStore = defineStore('settings', () => {
   watch(theme, applyTheme, { flush: 'sync', immediate: true })
   watch(
     [theme, pageSize, locale],
-    () => saveSettings({ theme: theme.value, pageSize: pageSize.value, locale: locale.value }),
+    () => {
+      const settings: Settings = { theme: theme.value, pageSize: pageSize.value, locale: locale.value }
+      writeStored(SETTINGS_STORAGE_KEY, settings)
+    },
     { flush: 'sync' },
   )
 

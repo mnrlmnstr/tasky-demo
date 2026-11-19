@@ -14,6 +14,7 @@ export default {
   },
   list: {
     loading: 'Loading tasks…',
+    reloading: 'Updating tasks…',
     empty: 'No tasks yet',
     noResults: 'No tasks match your filters',
     retry: 'Try again',

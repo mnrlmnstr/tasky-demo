@@ -1,11 +1,14 @@
-import { mount } from '@vue/test-utils'
+import { mount, type VueWrapper } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick } from 'vue'
 
 import type { TaskRead } from '../../api/generated/client'
+import { CLOCK, type Clock } from '../../i18n/clock'
 import type { Locale } from '../../stores/settings'
 import { appPlugins } from '../../test/appPlugins'
-import { CLOCK, type Clock } from './clock'
 import TaskRow from './TaskRow.vue'
+
+const MINUTE_MS = 60_000
 
 // Noon UTC on 5 March 2026, shown in Kyiv time (UTC+2 on that day).
 const KYIV_NOON: Clock = { now: () => new Date('2026-03-05T12:00:00Z'), timeZone: 'Europe/Kyiv' }
@@ -24,14 +27,33 @@ function task(overrides: Partial<TaskRead> = {}): TaskRead {
   }
 }
 
+// Rows share one timer while any of them is mounted, so every test takes its rows down again.
+const mounted: VueWrapper[] = []
+
 function mountRow(overrides: Partial<TaskRead> = {}, locale: Locale = 'en', clock: Clock | null = KYIV_NOON) {
-  return mount(TaskRow, {
+  const row = mount(TaskRow, {
     props: { task: task(overrides) },
     global: {
       plugins: appPlugins(locale),
       provide: clock === null ? {} : { [CLOCK as symbol]: clock },
     },
   })
+  mounted.push(row)
+  return row
+}
+
+// A clock the test moves by hand, together with the timers that make the rows look at it again.
+function movableClock(start: string) {
+  let now = new Date(start)
+  const clock: Clock = { now: () => now, timeZone: 'Europe/Kyiv' }
+  return {
+    clock,
+    async advance(milliseconds: number) {
+      now = new Date(now.getTime() + milliseconds)
+      vi.advanceTimersByTime(milliseconds)
+      await nextTick()
+    },
+  }
 }
 
 // Intl separates the time from AM/PM with a narrow no-break space.
@@ -45,6 +67,8 @@ describe('TaskRow', () => {
   })
 
   afterEach(() => {
+    for (const row of mounted.splice(0)) row.unmount()
+    vi.useRealTimers()
     vi.unstubAllEnvs()
   })
 
@@ -156,6 +180,73 @@ describe('TaskRow', () => {
     expect(deadline.classes()).not.toContain('text-danger-text')
   })
 
+  // Same cause, other inputs: fractional seconds also come without an offset, and a browser behind UTC
+  // errs the other way, hiding a deadline that has passed.
+  it('reads a deadline with fractional seconds and no offset as UTC when deciding whether it is overdue', () => {
+    vi.stubEnv('TZ', 'Europe/Kyiv')
+
+    const row = mountRow({ deadline: '2026-03-05T12:30:00.000' })
+
+    expect(row.get('[data-testid="task-deadline"]').text()).not.toContain('Overdue')
+  })
+
+  it('marks a deadline without an offset that has passed in UTC as overdue in a browser behind UTC', () => {
+    vi.stubEnv('TZ', 'America/New_York')
+
+    const row = mountRow({ deadline: '2026-03-05T11:30:00' })
+
+    const deadline = row.get('[data-testid="task-deadline"]')
+    expect(plainText(deadline.text())).toBe('Due Mar 5, 2026, 1:30 PM · Overdue')
+    expect(deadline.classes()).toContain('text-danger-text')
+  })
+
+  it('shows the dash, not a dangling "Due", when the deadline cannot be read', () => {
+    const row = mountRow({ deadline: 'not a date' })
+
+    const deadline = row.get('[data-testid="task-deadline"]')
+    expect(deadline.get('[aria-hidden="true"]').text()).toBe('—')
+    expect(deadline.get('.sr-only').text()).toBe('No deadline')
+    expect(deadline.text()).not.toContain('Due')
+    expect(deadline.classes()).not.toContain('text-danger-text')
+  })
+
+  it('turns overdue while it stays on screen, once the deadline passes', async () => {
+    vi.useFakeTimers()
+    const time = movableClock('2026-03-05T12:00:00Z')
+    const row = mountRow({ deadline: '2026-03-05T12:00:30Z' }, 'en', time.clock)
+    expect(row.get('[data-testid="task-deadline"]').text()).not.toContain('Overdue')
+
+    await time.advance(MINUTE_MS)
+
+    const deadline = row.get('[data-testid="task-deadline"]')
+    expect(deadline.text()).toContain('Overdue')
+    expect(deadline.classes()).toContain('text-danger-text')
+  })
+
+  it('ages the created date while it stays on screen', async () => {
+    vi.useFakeTimers()
+    const time = movableClock('2026-03-05T12:00:00Z')
+    const row = mountRow({ created_at: '2026-03-05T09:00:00Z' }, 'en', time.clock)
+    expect(row.get('time').text()).toBe('Created 3 hours ago')
+
+    await time.advance(60 * MINUTE_MS)
+
+    expect(row.get('time').text()).toBe('Created 4 hours ago')
+  })
+
+  it('runs one timer for all the rows on screen and stops it when the last one is gone', () => {
+    vi.useFakeTimers()
+    const first = mountRow()
+    const second = mountRow()
+    expect(vi.getTimerCount()).toBe(1)
+
+    first.unmount()
+    expect(vi.getTimerCount()).toBe(1)
+
+    second.unmount()
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
   it('does not mark a task without a deadline as overdue', () => {
     const row = mountRow({ deadline: null })
 
@@ -169,6 +260,15 @@ describe('TaskRow', () => {
     expect(created.text()).toBe('Created 3 hours ago')
     expect(plainText(created.attributes('title') ?? '')).toBe('Mar 5, 2026, 11:00 AM')
     expect(created.attributes('datetime')).toBe('2026-03-05T09:00:00Z')
+  })
+
+  it('gives the exact moment of creation as text too, for those who cannot hover', () => {
+    const row = mountRow({ created_at: '2026-03-05T09:00:00Z' })
+
+    const exact = row.get('[data-testid="task-created-at"]')
+    expect(plainText(exact.text())).toBe('Mar 5, 2026, 11:00 AM')
+    expect(exact.classes()).toContain('sr-only')
+    expect(exact.attributes('aria-hidden')).toBeUndefined()
   })
 
   it('words the created date in Ukrainian when the language is Ukrainian', () => {

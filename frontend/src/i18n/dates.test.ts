@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { formatDateTime, formatRelativeTime } from './dates'
+import { formatDateTime, formatRelativeTime, isPast } from './dates'
 
 // Intl separates the time from AM/PM with a narrow no-break space; the assertions read better with plain ones.
 function plainSpaces(text: string): string {
@@ -115,5 +115,35 @@ describe('relative time', () => {
 
   it('shows nothing for an unreadable timestamp', () => {
     expect(formatRelativeTime('not a date', now, 'en')).toBe('')
+  })
+})
+
+describe('whether a moment has passed', () => {
+  const noon = new Date('2026-03-05T12:00:00Z')
+
+  it.each([
+    ['a minute before the clock', '2026-03-05T11:59:00Z', true],
+    ['the very moment of the clock', '2026-03-05T12:00:00Z', false],
+    ['a minute after the clock', '2026-03-05T12:01:00Z', false],
+    ['an earlier moment written with its own offset', '2026-03-05T13:30:00+02:00', true],
+  ])('for %s', (_name, timestamp, expected) => {
+    expect(isPast(timestamp, noon)).toBe(expected)
+  })
+
+  it.each([
+    ['Europe/Kyiv', '2026-03-05T12:30:00', false],
+    ['Europe/Kyiv', '2026-03-05T12:30:00.000', false],
+    ['America/New_York', '2026-03-05T11:30:00', true],
+    ['America/New_York', '2026-03-05T11:30:00.250', true],
+  ])('reads a timestamp without an offset as UTC in a %s browser: %s', (zone, timestamp, expected) => {
+    vi.stubEnv('TZ', zone)
+
+    expect(isPast(timestamp, noon)).toBe(expected)
+
+    vi.unstubAllEnvs()
+  })
+
+  it('never counts an unreadable timestamp as passed', () => {
+    expect(isPast('not a date', noon)).toBe(false)
   })
 })

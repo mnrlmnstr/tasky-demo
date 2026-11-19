@@ -351,3 +351,10 @@ describe('saving', () => {
     expect(settings.pageSize).toBe(10)
   })
 })
+
+// The inline snippet cannot import the store, so the key is written out there a second time.
+describe('storage key in index.html', () => {
+  it('is the key the store saves under', () => {
+    expect(indexHtml).toContain(`localStorage.getItem('${SETTINGS_STORAGE_KEY}')`)
+  })
+})

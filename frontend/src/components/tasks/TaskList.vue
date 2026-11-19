@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import type { ApiErrorKind } from '../../api/http'
+import { formatNumber } from '../../i18n/numbers'
 import { useListViewStore } from '../../stores/listView'
 import { useTasksStore } from '../../stores/tasks'
 import Button from '../ui/Button.vue'
@@ -10,18 +12,43 @@ import TaskRow from './TaskRow.vue'
 
 const SKELETON_ROWS = 6
 
-const { t, te } = useI18n()
+// Every kind is listed, so a new one does not compile until it has a message.
+const ERROR_MESSAGES: Record<ApiErrorKind, string> = {
+  network: 'errors.network',
+  server: 'errors.server',
+  not_found: 'errors.not_found',
+  validation: 'errors.generic',
+  aborted: 'errors.generic',
+}
+
+const { t, locale } = useI18n()
 const tasks = useTasksStore()
 const view = useListViewStore()
 
 const hasRows = computed(() => tasks.items.length > 0)
 const isRequesting = computed(() => tasks.status === 'loading' || tasks.status === 'reloading')
 
-const errorMessage = computed(() => {
-  if (tasks.error === null) return null
-  const key = `errors.${tasks.error}`
-  return te(key) ? t(key) : t('errors.generic')
+const errorMessage = computed(() => (tasks.error === null ? null : t(ERROR_MESSAGES[tasks.error])))
+
+// The number is written for the language; the plural form is still chosen by the count itself.
+const totalText = computed(() => t('list.total', { n: formatNumber(tasks.total, locale.value) }, tasks.total))
+
+const emptyText = computed(() => t(view.isFiltered ? 'list.noResults' : 'list.empty'))
+
+// What the live region says. A failure is left to the alert, which would otherwise be announced twice.
+// With no rows to keep on screen a reload looks like a first load, and is announced as one.
+const announcement = computed(() => {
+  if (tasks.status === 'failed') return ''
+  if (tasks.status === 'ready') return hasRows.value ? totalText.value : emptyText.value
+  return t(hasRows.value ? 'list.reloading' : 'list.loading')
 })
+
+// The controls count from the page of the rows on screen. After a page failed to load that is still
+// the page before it, so asking for the same page once more is a retry, not a change of the view.
+function goToPage(page: number): void {
+  if (page !== view.page) view.page = page
+  else if (tasks.status === 'failed') tasks.retry()
+}
 
 // A leaving row is taken out of the flow, so the rows replacing it do not start below it;
 // pinned to where it was, it fades out in place.
@@ -33,6 +60,9 @@ function pinInPlace(row: Element): void {
 
 <template>
   <section>
+    <!-- Always in the page, with only its text changing: a region inserted already filled is not announced. -->
+    <p role="status" class="sr-only">{{ announcement }}</p>
+
     <div
       v-if="errorMessage !== null"
       role="alert"
@@ -44,7 +74,7 @@ function pinInPlace(row: Element): void {
 
     <template v-if="hasRows">
       <p data-testid="task-total" class="h-5 text-[13px] leading-5 text-text-muted">
-        {{ t('list.total', tasks.total) }}
+        {{ totalText }}
       </p>
       <ul
         class="relative mt-2 divide-y divide-border border-y border-border transition-opacity"
@@ -57,20 +87,18 @@ function pinInPlace(row: Element): void {
           </li>
         </TransitionGroup>
       </ul>
-      <Pagination v-model:page="view.page" :pages="tasks.pages" class="mt-5" />
+      <Pagination :page="tasks.page" :pages="tasks.pages" class="mt-5" @update:page="goToPage" />
     </template>
 
     <template v-else-if="errorMessage === null">
       <div v-if="tasks.status === 'ready'" data-testid="task-list-empty" class="py-16 text-center">
-        <template v-if="view.isFiltered">
-          <p class="text-sm text-text-muted">{{ t('list.noResults') }}</p>
-          <Button class="mt-4" @click="view.clearFilters()">{{ t('toolbar.clearFilters') }}</Button>
-        </template>
-        <p v-else class="text-sm text-text-muted">{{ t('list.empty') }}</p>
+        <p class="text-sm text-text-muted">{{ emptyText }}</p>
+        <Button v-if="view.isFiltered" class="mt-4" @click="view.clearFilters()">
+          {{ t('toolbar.clearFilters') }}
+        </Button>
       </div>
 
       <div v-else>
-        <p role="status" class="sr-only">{{ t('list.loading') }}</p>
         <div aria-hidden="true" class="animate-pulse">
           <div class="flex h-5 items-center">
             <div class="h-3 w-20 rounded-full bg-surface-muted" />

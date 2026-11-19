@@ -2,16 +2,14 @@ import { defineStore } from 'pinia'
 import { computed, ref, shallowRef, watch } from 'vue'
 
 import { listTasks, type ListTasksParams, type PageTaskRead, type TaskRead } from '../api/generated/client'
-import type { ApiError, ApiErrorKind } from '../api/http'
+import { ApiError, type ApiErrorKind } from '../api/http'
 import { latestOnly } from '../api/latestOnly'
-import { useListViewStore } from './listView'
+import { FIRST_PAGE, useListViewStore } from './listView'
 import { useSettingsStore } from './settings'
 
 // `loading` is the first load, with nothing to show yet; `reloading` keeps the rows of the last answer on screen.
 // `failed` says the last request failed; the rows of the last answer, if there was one, are still in `items`.
 export type TasksStatus = 'idle' | 'loading' | 'reloading' | 'ready' | 'failed'
-
-const FIRST_PAGE = 1
 
 export const useTasksStore = defineStore('tasks', () => {
   const view = useListViewStore()
@@ -20,6 +18,8 @@ export const useTasksStore = defineStore('tasks', () => {
   const items = shallowRef<TaskRead[]>([])
   const total = ref(0)
   const pages = ref(0)
+  // The page `items` belongs to. The view's page runs ahead of it while a page loads and after it failed to.
+  const page = ref(FIRST_PAGE)
   const started = ref(false)
   const inFlight = ref(false)
   const answered = ref(false)
@@ -40,32 +40,42 @@ export const useTasksStore = defineStore('tasks', () => {
   const requestList = latestOnly((signal, params: ListTasksParams) => listTasks(params, { signal }))
 
   let latestRequest = 0
+  // The query the state already accounts for: the watcher below skips a change to it.
+  let coveredQuery: string | null = null
 
   // Only the latest request may touch the state. A superseded one normally rejects as `aborted`, but an
   // abort that comes after the response has arrived stops nothing, so the outcome is checked, not its kind.
+  // Every path of the latest request either settles the state or hands over to a new request.
   async function load(): Promise<void> {
     const request = ++latestRequest
+    const params = query.value
+    const requestedPage = view.page
+    coveredQuery = queryKey.value
     inFlight.value = true
     let answer: PageTaskRead
     try {
-      answer = await requestList(query.value)
+      answer = await requestList(params)
     } catch (failure) {
       if (request !== latestRequest) return
-      // The generated client rejects with nothing but an ApiError.
-      error.value = (failure as ApiError).kind
+      error.value = failure instanceof ApiError ? failure.kind : 'server'
       inFlight.value = false
       return
     }
     if (request !== latestRequest) return
-    if (answer.items.length === 0 && answer.total > 0 && view.page > answer.pages) {
+    let shownPage = requestedPage
+    const lastPage = Math.max(answer.pages, FIRST_PAGE)
+    if (answer.items.length === 0 && view.page > lastPage) {
       // The list got shorter than the address says (tasks deleted, a bigger page size, an old link).
-      // The page change makes the watcher ask again; until then this still counts as loading.
-      view.correctPage(answer.pages)
-      return
+      view.correctPage(lastPage)
+      if (answer.total > 0) return load()
+      // Nothing matches at all, so page 1 is as empty as this one: the answer in hand already describes it.
+      coveredQuery = queryKey.value
+      shownPage = FIRST_PAGE
     }
     items.value = answer.items
     total.value = answer.total
     pages.value = answer.pages
+    page.value = shownPage
     answered.value = true
     error.value = null
     inFlight.value = false
@@ -78,16 +88,25 @@ export const useTasksStore = defineStore('tasks', () => {
   function start(): void {
     if (started.value) return
     started.value = true
-    // Synchronous, so the page is already 1 when the query watcher below runs: one request, not two.
-    watch(
-      () => settings.pageSize,
-      () => view.correctPage(FIRST_PAGE),
-      { flush: 'sync' },
-    )
-    // Runs once per tick, however many fields of the view changed in it.
-    watch(queryKey, () => void load())
     void load()
   }
 
-  return { items, total, pages, status, error, start, retry }
+  // Both watchers belong to the store, not to whichever component called `start`, so the list keeps
+  // following the view after that component is gone.
+
+  // Synchronous, so the page is already 1 when the query watcher below runs: one request, not two.
+  watch(
+    () => settings.pageSize,
+    () => {
+      if (started.value) view.correctPage(FIRST_PAGE)
+    },
+    { flush: 'sync' },
+  )
+
+  // Runs once per tick, however many fields of the view changed in it.
+  watch(queryKey, (key) => {
+    if (started.value && key !== coveredQuery) void load()
+  })
+
+  return { items, total, pages, page, status, error, start, retry }
 })

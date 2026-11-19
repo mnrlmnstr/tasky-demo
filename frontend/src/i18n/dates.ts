@@ -6,6 +6,12 @@ function parseInstant(timestamp: string): Date | null {
   return Number.isNaN(instant.getTime()) ? null : instant
 }
 
+/** Whether the timestamp is before `now`. Read the same way as it is shown; an unreadable one has never passed. */
+export function isPast(timestamp: string, now: Date): boolean {
+  const instant = parseInstant(timestamp)
+  return instant !== null && instant.getTime() < now.getTime()
+}
+
 export interface DateTimeOptions {
   /** IANA zone to show the instant in; the user's own zone when left out. */
   timeZone?: string

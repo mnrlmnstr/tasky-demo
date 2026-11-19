@@ -4,9 +4,9 @@ import { computed, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { TaskPriority, TaskRead, TaskStatus } from '../../api/generated/client'
-import { formatDateTime, formatRelativeTime } from '../../i18n/dates'
+import { useClock } from '../../i18n/clock'
+import { formatDateTime, formatRelativeTime, isPast } from '../../i18n/dates'
 import Badge, { type BadgeTone } from '../ui/Badge.vue'
-import { useClock } from './clock'
 
 const STATUS_ICONS: Record<TaskStatus, { icon: Component; class: string }> = {
   todo: { icon: Circle, class: 'text-text-muted' },
@@ -29,13 +29,15 @@ const clock = useClock()
 const statusIcon = computed(() => STATUS_ICONS[task.status])
 const isDone = computed(() => task.status === 'done')
 
+// A deadline that cannot be read is shown like no deadline at all.
 const deadline = computed(() =>
-  task.deadline === null ? null : formatDateTime(task.deadline, locale.value, { timeZone: clock.timeZone }),
+  task.deadline === null
+    ? null
+    : formatDateTime(task.deadline, locale.value, { timeZone: clock.timeZone }) || null,
 )
 
-const isOverdue = computed(
-  () => task.deadline !== null && !isDone.value && new Date(task.deadline).getTime() < clock.now().getTime(),
-)
+// Read by the same parser as the text above, so the mark never disagrees with the date next to it.
+const isOverdue = computed(() => task.deadline !== null && !isDone.value && isPast(task.deadline, clock.now()))
 
 const createdAgo = computed(() => formatRelativeTime(task.created_at, clock.now(), locale.value))
 const createdAt = computed(() => formatDateTime(task.created_at, locale.value, { timeZone: clock.timeZone }))
@@ -70,9 +72,13 @@ const createdAt = computed(() => formatDateTime(task.created_at, locale.value, {
             <template v-if="isOverdue"> · {{ t('task.overdue') }}</template>
           </template>
         </span>
-        <time :datetime="task.created_at" :title="createdAt">
-          {{ t('task.created', { date: createdAgo }) }}
-        </time>
+        <span>
+          <time :datetime="task.created_at" :title="createdAt">
+            {{ t('task.created', { date: createdAgo }) }}
+          </time>
+          <!-- The tooltip needs a pointer; this says the same to a screen reader. -->
+          <span data-testid="task-created-at" class="sr-only">{{ createdAt }}</span>
+        </span>
       </p>
     </div>
   </div>

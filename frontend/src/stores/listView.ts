@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { computed, nextTick, watch } from 'vue'
 
 import { TaskOrdering, TaskStatus, type ListTasksParams } from '../api/generated/client'
+import { oneOf, readStored, writeStored } from './storage'
 
 export const LIST_VIEW_STORAGE_KEY = 'tasky:list-view'
 
@@ -16,7 +17,7 @@ export type ListQueryParams = Omit<ListTasksParams, 'page_size'>
 const DEFAULT_SEARCH = ''
 const DEFAULT_STATUS: StatusFilter = 'all'
 const DEFAULT_ORDERING: TaskOrdering = '-created_at'
-const FIRST_PAGE = 1
+export const FIRST_PAGE = 1
 
 interface Filters {
   search: string
@@ -31,9 +32,8 @@ interface View extends Filters {
 const OWNED_PARAMS = ['search', 'status', 'ordering', 'page'] as const
 type OwnedParam = (typeof OWNED_PARAMS)[number]
 
-function oneOf<T>(allowed: readonly T[], value: unknown, fallback: T): T {
-  return allowed.find((candidate) => candidate === value) ?? fallback
-}
+// Whether a change gets its own step in back/forward or takes the place of the current one.
+type HistoryStep = 'push' | 'replace'
 
 function searchFrom(value: unknown): string {
   return typeof value === 'string' ? value.trim() : DEFAULT_SEARCH
@@ -59,22 +59,13 @@ function filtersFrom(source: Partial<Record<keyof Filters, unknown>> | null): Fi
   }
 }
 
-// Storage can be absent, blocked or hold anything another script or an older version wrote; all of that reads as "nothing saved".
 function loadSavedFilters(): Filters {
-  try {
-    return filtersFrom(JSON.parse(localStorage.getItem(LIST_VIEW_STORAGE_KEY) ?? 'null'))
-  } catch {
-    return filtersFrom(null)
-  }
+  return filtersFrom(readStored(LIST_VIEW_STORAGE_KEY) as Parameters<typeof filtersFrom>[0])
 }
 
-// Private browsing, a full quota or a blocked storage must not break the app: the view then lives in the address only.
+// When storage refuses, the view lives in the address only.
 function saveFilters(filters: Filters): void {
-  try {
-    localStorage.setItem(LIST_VIEW_STORAGE_KEY, JSON.stringify(filters))
-  } catch {
-    return
-  }
+  writeStored(LIST_VIEW_STORAGE_KEY, filters)
 }
 
 // Defaults stay out of the address, so the default view has a bare one.
@@ -126,44 +117,44 @@ export const useListViewStore = defineStore('listView', () => {
 
   // Status, ordering, page and clearing each add a history entry. Search replaces the current one:
   // it changes on every pause in typing and would bury the views worth going back to.
-  function change(next: View, { addsHistoryEntry }: { addsHistoryEntry: boolean }): void {
+  function change(next: View, step: HistoryStep): void {
     if (isCurrent(next)) return
-    if (addsHistoryEntry) addHistoryEntry()
+    if (step === 'push') addHistoryEntry()
     show(next)
   }
 
   // A filter that really changes starts the list again from page 1; setting it to what it already is changes nothing.
-  function filter(next: Partial<Filters>, history: { addsHistoryEntry: boolean }): void {
+  function filter(next: Partial<Filters>, step: HistoryStep): void {
     const filtered = { ...view.value, ...next }
-    if (!isCurrent(filtered)) change({ ...filtered, page: FIRST_PAGE }, history)
+    if (!isCurrent(filtered)) change({ ...filtered, page: FIRST_PAGE }, step)
   }
 
   const search = computed({
     get: () => view.value.search,
-    set: (value: string) => filter({ search: searchFrom(value) }, { addsHistoryEntry: false }),
+    set: (value: string) => filter({ search: searchFrom(value) }, 'replace'),
   })
 
   const status = computed({
     get: () => view.value.status,
     set: (value: StatusFilter) =>
-      filter({ status: oneOf(STATUS_FILTERS, value, DEFAULT_STATUS) }, { addsHistoryEntry: true }),
+      filter({ status: oneOf(STATUS_FILTERS, value, DEFAULT_STATUS) }, 'push'),
   })
 
   const ordering = computed({
     get: () => view.value.ordering,
     set: (value: TaskOrdering) =>
-      filter({ ordering: oneOf(ORDERINGS, value, DEFAULT_ORDERING) }, { addsHistoryEntry: true }),
+      filter({ ordering: oneOf(ORDERINGS, value, DEFAULT_ORDERING) }, 'push'),
   })
 
   const page = computed({
     get: () => view.value.page,
-    set: (value: number) => change({ ...view.value, page: pageFromNumber(value) }, { addsHistoryEntry: true }),
+    set: (value: number) => change({ ...view.value, page: pageFromNumber(value) }, 'push'),
   })
 
   // For a page the user did not choose (the list got shorter, the page size changed): it takes the
   // place of the current history entry, so back never lands on a page that sends the user forward again.
   function correctPage(value: number): void {
-    change({ ...view.value, page: pageFromNumber(value) }, { addsHistoryEntry: false })
+    change({ ...view.value, page: pageFromNumber(value) }, 'replace')
   }
 
   // Ordering and page are not filters: they never turn a list with tasks into an empty one.
@@ -177,7 +168,7 @@ export const useListViewStore = defineStore('listView', () => {
   })
 
   function clearFilters(): void {
-    filter({ search: DEFAULT_SEARCH, status: DEFAULT_STATUS }, { addsHistoryEntry: true })
+    filter({ search: DEFAULT_SEARCH, status: DEFAULT_STATUS }, 'push')
   }
 
   const addressDescribesView = OWNED_PARAMS.some((name) => name in params)
