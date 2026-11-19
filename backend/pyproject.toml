@@ -4,7 +4,11 @@ version = "0.1.0"
 description = "Tasky task manager API"
 requires-python = ">=3.13"
 dependencies = [
+    "alembic>=1.14",
+    "asyncpg>=0.30",
     "fastapi>=0.115",
+    "pydantic-settings>=2.6",
+    "sqlalchemy[asyncio]>=2.0",
     "uvicorn[standard]>=0.32",
 ]
 
@@ -26,6 +30,8 @@ pythonpath = ["."]
 [tool.coverage.run]
 source = ["app"]
 branch = true
+# SQLAlchemy's async layer runs on greenlets; without this coverage loses track of them.
+concurrency = ["greenlet", "thread"]
 
 [tool.ruff]
 target-version = "py313"

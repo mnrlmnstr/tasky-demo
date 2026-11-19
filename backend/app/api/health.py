@@ -1,8 +1,19 @@
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Response, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_session
+from app.services.health import database_is_reachable
 
 router = APIRouter(tags=["health"])
 
 
 @router.get("/health")
-async def health() -> dict[str, str]:
+async def health(
+    response: Response, session: Annotated[AsyncSession, Depends(get_session)]
+) -> dict[str, str]:
+    if not await database_is_reachable(session):
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        return {"status": "unavailable"}
     return {"status": "ok"}
