@@ -209,6 +209,17 @@ async def test_update_task_moves_updated_at_forward(rollback_client: httpx.Async
 
 
 @pytest.mark.anyio
+async def test_update_task_keeps_created_at(rollback_client: httpx.AsyncClient) -> None:
+    created = (await rollback_client.post(TASKS, json=FULL_TASK)).json()
+
+    response = await rollback_client.patch(f"{TASKS}/{created['id']}", json={"priority": "high"})
+    fetched = await rollback_client.get(f"{TASKS}/{created['id']}")
+
+    assert response.json()["created_at"] == created["created_at"]
+    assert fetched.json()["created_at"] == created["created_at"]
+
+
+@pytest.mark.anyio
 async def test_update_task_with_unchanged_values_still_moves_updated_at_forward(
     rollback_client: httpx.AsyncClient,
 ) -> None:

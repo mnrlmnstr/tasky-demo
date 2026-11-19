@@ -237,7 +237,9 @@ async def test_filters_combine_and_total_counts_only_matches(
         {"ordering": "-"},
         {"page": 0},
         {"page": "one"},
+        {"page": -1},
         {"page_size": 0},
+        {"page_size": "ten"},
         {"page_size": 101},
     ],
 )
