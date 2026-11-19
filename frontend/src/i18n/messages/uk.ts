@@ -15,6 +15,16 @@ const uk: typeof en = {
     not_found: 'Цієї задачі вже немає.',
     generic: 'Щось пішло не так. Спробуйте ще раз.',
   },
+  undo: {
+    labels: {
+      created: 'Задачу створено',
+      updated: 'Задачу оновлено',
+      statusChanged: 'Статус змінено',
+    },
+    action: 'Скасувати',
+    dismiss: 'Закрити',
+    failed: 'Не вдалося скасувати. {reason}',
+  },
   list: {
     loading: 'Завантажуємо задачі…',
     reloading: 'Оновлюємо задачі…',

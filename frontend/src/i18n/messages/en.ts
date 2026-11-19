@@ -12,6 +12,16 @@ export default {
     not_found: 'This task no longer exists.',
     generic: 'Something went wrong. Please try again.',
   },
+  undo: {
+    labels: {
+      created: 'Task created',
+      updated: 'Task updated',
+      statusChanged: 'Status changed',
+    },
+    action: 'Undo',
+    dismiss: 'Dismiss',
+    failed: 'Could not undo. {reason}',
+  },
   list: {
     loading: 'Loading tasks…',
     reloading: 'Updating tasks…',
