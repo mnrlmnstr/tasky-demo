@@ -60,7 +60,7 @@ export const useTasksStore = defineStore('tasks', () => {
     if (answer.items.length === 0 && answer.total > 0 && view.page > answer.pages) {
       // The list got shorter than the address says (tasks deleted, a bigger page size, an old link).
       // The page change makes the watcher ask again; until then this still counts as loading.
-      view.page = answer.pages
+      view.correctPage(answer.pages)
       return
     }
     items.value = answer.items
@@ -81,9 +81,7 @@ export const useTasksStore = defineStore('tasks', () => {
     // Synchronous, so the page is already 1 when the query watcher below runs: one request, not two.
     watch(
       () => settings.pageSize,
-      () => {
-        view.page = FIRST_PAGE
-      },
+      () => view.correctPage(FIRST_PAGE),
       { flush: 'sync' },
     )
     // Runs once per tick, however many fields of the view changed in it.

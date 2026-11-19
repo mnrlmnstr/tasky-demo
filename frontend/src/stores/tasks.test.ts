@@ -339,6 +339,21 @@ describe('following the page size', () => {
     expect(api.queries).toHaveLength(2)
     expect(api.queries[1]).toEqual({ status: 'done', ordering: '-created_at', page: '1', page_size: '10' })
   })
+
+  it('adds no history entry when it goes back to the first page', async () => {
+    addressIs('/?page=3')
+    const api = fakeApi()
+    const { tasks, settings } = loadStores()
+    tasks.start()
+    await api.respondTo(0, pageOf(['Old'], { total: 60, page: 3, pages: 3 }))
+    const entries = history.length
+
+    settings.pageSize = 10
+    await nextTick()
+
+    expect(address()).toBe('/')
+    expect(history.length).toBe(entries)
+  })
 })
 
 describe('landing on a page past the end', () => {
@@ -358,6 +373,42 @@ describe('landing on a page past the end', () => {
     expect(tasks.total).toBe(0)
     expect(api.queries).toHaveLength(2)
     expect(api.queries[1]).toEqual({ status: 'done', ordering: '-created_at', page: '3', page_size: '20' })
+  })
+
+  it('adds no history entry for the move', async () => {
+    addressIs('/?page=9')
+    const api = fakeApi()
+    const { tasks } = loadStores()
+    tasks.start()
+    const entries = history.length
+
+    await api.respondTo(0, PAST_THE_END)
+
+    expect(address()).toBe('/?page=3')
+    expect(history.length).toBe(entries)
+  })
+
+  it('lets back return to where the user was, not to the page past the end', async () => {
+    const api = fakeApi()
+    const { tasks, view } = loadStores()
+    tasks.start()
+    await api.respondTo(0, pageOf(['Old'], { total: 60, pages: 3 }))
+    view.page = 3
+    await nextTick()
+    await api.respondTo(1, pageOf([], { total: 40, page: 3, pages: 2 }))
+    await api.respondTo(2, pageOf(['Last one'], { total: 40, page: 2, pages: 2 }))
+
+    const arrived = new Promise<void>((resolve) => {
+      window.addEventListener('popstate', () => resolve(), { once: true })
+    })
+    history.back()
+    await arrived
+    await nextTick()
+
+    expect(address()).toBe('/')
+    expect(view.page).toBe(1)
+    expect(api.queries).toHaveLength(4)
+    expect(api.queries[3]).toEqual({ ordering: '-created_at', page: '1', page_size: '20' })
   })
 
   it('shows the last page once it arrives', async () => {

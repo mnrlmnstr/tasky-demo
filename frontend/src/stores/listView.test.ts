@@ -336,6 +336,48 @@ describe('clearing the filters', () => {
   })
 })
 
+describe('correcting the page', () => {
+  it('shows the corrected page, in the address too', async () => {
+    addressIs('/?status=done&page=9')
+    const view = loadStore()
+
+    view.correctPage(3)
+    await nextTick()
+
+    expect(view.page).toBe(3)
+    expect(address()).toBe('/?status=done&page=3')
+  })
+
+  it('adds no history entry, so back does not return to the page that was wrong', async () => {
+    const view = loadStore()
+    view.status = 'done'
+    await nextTick()
+    view.page = 9
+    await nextTick()
+    const entries = history.length
+
+    view.correctPage(3)
+    await nextTick()
+
+    expect(history.length).toBe(entries)
+
+    await goBack()
+
+    expect(address()).toBe('/?status=done')
+  })
+
+  it('falls back to the first page for a page that cannot be one', async () => {
+    addressIs('/?page=4')
+    const view = loadStore()
+
+    view.correctPage(0)
+    await nextTick()
+
+    expect(view.page).toBe(1)
+    expect(address()).toBe('/')
+  })
+})
+
 describe('telling a filtered list from a full one', () => {
   it('is not filtered in the default view', () => {
     expect(loadStore().isFiltered).toBe(false)

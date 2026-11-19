@@ -160,6 +160,12 @@ export const useListViewStore = defineStore('listView', () => {
     set: (value: number) => change({ ...view.value, page: pageFromNumber(value) }, { addsHistoryEntry: true }),
   })
 
+  // For a page the user did not choose (the list got shorter, the page size changed): it takes the
+  // place of the current history entry, so back never lands on a page that sends the user forward again.
+  function correctPage(value: number): void {
+    change({ ...view.value, page: pageFromNumber(value) }, { addsHistoryEntry: false })
+  }
+
   // Ordering and page are not filters: they never turn a list with tasks into an empty one.
   const isFiltered = computed(() => search.value !== DEFAULT_SEARCH || status.value !== DEFAULT_STATUS)
 
@@ -185,5 +191,5 @@ export const useListViewStore = defineStore('listView', () => {
     { flush: 'sync', immediate: true },
   )
 
-  return { search, status, ordering, page, isFiltered, queryParams, clearFilters }
+  return { search, status, ordering, page, isFiltered, queryParams, clearFilters, correctPage }
 })
