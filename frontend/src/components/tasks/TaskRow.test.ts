@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { TaskRead } from '../../api/generated/client'
 import type { Locale } from '../../stores/settings'
@@ -42,6 +42,10 @@ function plainText(text: string): string {
 describe('TaskRow', () => {
   beforeEach(() => {
     localStorage.clear()
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   it('shows the task title', () => {
@@ -138,6 +142,18 @@ describe('TaskRow', () => {
     const row = mountRow({ deadline: '2026-03-05T12:00:00Z' })
 
     expect(row.get('[data-testid="task-deadline"]').text()).not.toContain('Overdue')
+  })
+
+  // The row shows such a deadline as UTC (see i18n/dates.ts), so it must compare it as UTC too:
+  // half an hour ahead of the clock is not overdue, whatever zone the browser is in.
+  it('reads a deadline without an offset as UTC when deciding whether it is overdue', () => {
+    vi.stubEnv('TZ', 'Europe/Kyiv')
+
+    const row = mountRow({ deadline: '2026-03-05T12:30:00' })
+
+    const deadline = row.get('[data-testid="task-deadline"]')
+    expect(plainText(deadline.text())).toBe('Due Mar 5, 2026, 2:30 PM')
+    expect(deadline.classes()).not.toContain('text-danger-text')
   })
 
   it('does not mark a task without a deadline as overdue', () => {
