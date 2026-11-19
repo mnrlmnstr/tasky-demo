@@ -7,13 +7,16 @@ from app.api import health, tasks
 from app.api.errors import register_exception_handlers
 from app.core.config import get_settings
 from app.core.database import create_engine, create_session_factory
+from app.core.logging import configure_logging
 
 API_PREFIX = "/api/v1"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    engine = create_engine(get_settings())
+    settings = get_settings()
+    configure_logging(settings)
+    engine = create_engine(settings)
     app.state.session_factory = create_session_factory(engine)
     try:
         yield
