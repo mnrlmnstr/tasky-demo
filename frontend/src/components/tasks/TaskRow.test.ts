@@ -85,21 +85,17 @@ describe('TaskRow', () => {
   ] as const)('draws a %s task with its own status icon, named "%s"', (status, name, iconClass) => {
     const row = mountRow({ status })
 
-    const icon = row.get('[role="img"]')
-    expect(icon.attributes('aria-label')).toBe(name)
+    const icon = row.get('[data-testid="task-status"]')
+    expect(icon.attributes('aria-label')).toBe(`Status: ${name}. Change status`)
     expect(icon.find(`svg.${iconClass}`).exists()).toBe(true)
   })
 
   it('names the status icon in Ukrainian when the language is Ukrainian', () => {
     const row = mountRow({ status: 'in_progress' }, 'uk')
 
-    expect(row.get('[role="img"]').attributes('aria-label')).toBe('У роботі')
-  })
-
-  it('does not offer the status icon as a control: it only shows the status', () => {
-    const row = mountRow()
-
-    expect(row.find('button').exists()).toBe(false)
+    expect(row.get('[data-testid="task-status"]').attributes('aria-label')).toBe(
+      'Статус: У роботі. Змінити статус',
+    )
   })
 
   it('mutes the title of a done task', () => {

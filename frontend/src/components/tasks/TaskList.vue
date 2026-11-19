@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, provide, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { ApiErrorKind } from '../../api/http'
@@ -7,6 +7,7 @@ import { formatNumber } from '../../i18n/numbers'
 import { useListViewStore } from '../../stores/listView'
 import { useTasksStore } from '../../stores/tasks'
 import Button from '../ui/Button.vue'
+import { FOCUS_TASK_LIST } from './listFocus'
 import Pagination from './Pagination.vue'
 import TaskRow from './TaskRow.vue'
 
@@ -56,10 +57,14 @@ function pinInPlace(row: Element): void {
   const element = row as HTMLElement
   element.style.top = `${element.offsetTop}px`
 }
+
+// Where the focus goes when the row holding it leaves the list.
+const region = useTemplateRef<HTMLElement>('region')
+provide(FOCUS_TASK_LIST, () => region.value?.focus({ preventScroll: true }))
 </script>
 
 <template>
-  <section>
+  <section ref="region" tabindex="-1" :aria-label="t('actions.listLabel')" class="outline-none">
     <!-- Always in the page, with only its text changing: a region inserted already filled is not announced. -->
     <p role="status" class="sr-only">{{ announcement }}</p>
 

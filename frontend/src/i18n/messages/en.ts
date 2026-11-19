@@ -30,6 +30,15 @@ export default {
     retry: 'Try again',
     total: '{n} task | {n} tasks',
   },
+  actions: {
+    listLabel: 'Tasks',
+    status: 'Status: {status}. Change status',
+    delete: 'Delete task',
+    deleteTitle: 'Delete «{title}»?',
+    deleteDescription: 'This cannot be undone.',
+    deleteConfirm: 'Delete',
+    cancel: 'Cancel',
+  },
   task: {
     status: {
       todo: 'To do',

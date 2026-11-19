@@ -33,6 +33,15 @@ const uk: typeof en = {
     retry: 'Спробувати ще раз',
     total: '{n} задача | {n} задачі | {n} задач',
   },
+  actions: {
+    listLabel: 'Задачі',
+    status: 'Статус: {status}. Змінити статус',
+    delete: 'Видалити задачу',
+    deleteTitle: 'Видалити «{title}»?',
+    deleteDescription: 'Відновити її буде неможливо.',
+    deleteConfirm: 'Видалити',
+    cancel: 'Скасувати',
+  },
   task: {
     status: {
       todo: 'До виконання',
