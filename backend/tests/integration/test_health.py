@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 
 import httpx
@@ -47,3 +48,15 @@ async def test_health_reports_unavailable_when_database_is_unreachable(
 
     assert response.status_code == 503
     assert response.json() == {"status": "unavailable"}
+
+
+@pytest.mark.anyio
+async def test_health_logs_unreachable_database(
+    client_without_database: httpx.AsyncClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    with caplog.at_level(logging.WARNING, logger="app.services.health"):
+        await client_without_database.get("/api/v1/health")
+
+    [record] = [r for r in caplog.records if r.getMessage() == "database_unreachable"]
+    assert record.levelno == logging.WARNING
+    assert record.error_type == "ConnectionRefusedError"

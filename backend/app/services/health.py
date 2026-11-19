@@ -1,6 +1,10 @@
+import logging
+
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 
 async def database_is_reachable(session: AsyncSession) -> bool:
@@ -8,6 +12,9 @@ async def database_is_reachable(session: AsyncSession) -> bool:
     # not wrapped by SQLAlchemy.
     try:
         await session.execute(text("SELECT 1"))
-    except (SQLAlchemyError, OSError):
+    except (SQLAlchemyError, OSError) as exc:
+        # Only the exception type: the message of a connection error can carry the
+        # database URL.
+        logger.warning("database_unreachable", extra={"error_type": type(exc).__name__})
         return False
     return True
