@@ -1,6 +1,8 @@
 <script setup lang="ts" generic="T extends string">
 import { ToggleGroupItem, ToggleGroupRoot } from 'reka-ui'
 
+import { CONTROL_CLASS } from './control'
+
 export interface SegmentedControlOption<V extends string = string> {
   value: V
   label: string
@@ -37,7 +39,8 @@ function select(value: unknown) {
       v-for="option in options"
       :key="option.value"
       :value="option.value"
-      class="inline-flex h-8 cursor-pointer items-center justify-center rounded-[6px] px-3 text-sm font-medium text-text-muted transition-colors hover:text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50 data-[state=on]:bg-raised data-[state=on]:text-text data-[state=on]:shadow-raised"
+      class="h-8 rounded-item px-3 text-sm font-medium text-text-muted hover:text-text data-[state=on]:bg-raised data-[state=on]:text-text data-[state=on]:shadow-raised"
+      :class="CONTROL_CLASS"
     >
       {{ option.label }}
     </ToggleGroupItem>

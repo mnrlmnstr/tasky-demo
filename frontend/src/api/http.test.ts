@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { API_BASE_URL, ApiError, apiFetch, latestOnly } from './http'
+import { ApiError, apiFetch } from './http'
 
 function fakeFetch(implementation: typeof fetch) {
   const fetchFake = vi.fn(implementation)
@@ -50,21 +50,15 @@ describe('apiFetch', () => {
   })
 
   it.each([
-    ['a path below the base', '/tasks', '/api/v1/tasks'],
-    ['a path with a query string', '/tasks?limit=20&offset=0', '/api/v1/tasks?limit=20&offset=0'],
-    ['a path that already carries the base', '/api/v1/tasks/7', '/api/v1/tasks/7'],
-    ['the base itself', '/api/v1', '/api/v1'],
-    ['a path that only shares a prefix with the base', '/api/v10/tasks', '/api/v1/api/v10/tasks'],
-  ])('requests %s under the API base URL', async (_name, path, requested) => {
+    ['a generated path', '/api/v1/tasks/7'],
+    ['a path with a query string', '/api/v1/tasks?page=2&page_size=10'],
+    ['a path outside the API', '/status'],
+  ])('requests %s exactly as given', async (_name, url) => {
     const fetchFake = fakeFetch(async () => jsonResponse({}))
 
-    await apiFetch(path)
+    await apiFetch(url)
 
-    expect(fetchFake).toHaveBeenCalledWith(requested, {})
-  })
-
-  it('exposes the API base URL', () => {
-    expect(API_BASE_URL).toBe('/api/v1')
+    expect(fetchFake).toHaveBeenCalledWith(url, {})
   })
 
   it('resolves with undefined when the response has no content', async () => {
@@ -74,104 +68,21 @@ describe('apiFetch', () => {
   })
 })
 
-// Answers like a real fetch: stays pending until told to respond, and rejects once its signal aborts.
-function fakeAbortableFetch() {
-  const pending: Array<(response: Response) => void> = []
-  fakeFetch(
-    (_input, init) =>
-      new Promise<Response>((resolve, reject) => {
-        pending.push(resolve)
-        init?.signal?.addEventListener('abort', () => {
-          reject(new DOMException('The operation was aborted.', 'AbortError'))
-        })
-      }),
-  )
-  return {
-    respondTo(callIndex: number, body: unknown) {
-      pending[callIndex](jsonResponse(body))
+// A response whose headers arrived but whose body fails while it is read.
+function brokenBodyResponse(status: number, failure: unknown = new TypeError('network error')): Response {
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.error(failure)
     },
-  }
+  })
+  return new Response(body, { status, headers: { 'Content-Type': 'application/json' } })
 }
 
-describe('latestOnly', () => {
-  it('passes its arguments to the request and resolves with its result', async () => {
-    const listTitles = latestOnly(async (_signal: AbortSignal, status: string, limit: number) => [
-      `${status}:${limit}`,
-    ])
-
-    await expect(listTitles('done', 20)).resolves.toEqual(['done:20'])
-  })
-
-  it('hands the request a signal that is not aborted', async () => {
-    const signals: AbortSignal[] = []
-    const load = latestOnly(async (signal: AbortSignal) => {
-      signals.push(signal)
-    })
-
-    await load()
-
-    expect(signals).toHaveLength(1)
-    expect(signals[0].aborted).toBe(false)
-  })
-
-  it('rejects the previous call as aborted when a new call starts, and resolves the new one', async () => {
-    const api = fakeAbortableFetch()
-    const listTasks = latestOnly((signal: AbortSignal, status: string) =>
-      apiFetch<{ items: string[] }>(`/api/v1/tasks?status=${status}`, { signal }),
-    )
-
-    const first = failureOf(listTasks('todo'))
-    const second = listTasks('done')
-    api.respondTo(1, { items: ['Buy milk'] })
-
-    expect(await first).toMatchObject({ kind: 'aborted' })
-    await expect(second).resolves.toEqual({ items: ['Buy milk'] })
-  })
-
-  it('keeps only the last of several overlapping calls', async () => {
-    const api = fakeAbortableFetch()
-    const listTasks = latestOnly((signal: AbortSignal, status: string) =>
-      apiFetch<{ items: string[] }>(`/api/v1/tasks?status=${status}`, { signal }),
-    )
-
-    const first = failureOf(listTasks('todo'))
-    const second = failureOf(listTasks('in_progress'))
-    const third = listTasks('done')
-    api.respondTo(2, { items: [] })
-
-    expect(await first).toMatchObject({ kind: 'aborted' })
-    expect(await second).toMatchObject({ kind: 'aborted' })
-    await expect(third).resolves.toEqual({ items: [] })
-  })
-
-  it('leaves a call that already finished alone when the next one starts', async () => {
-    const api = fakeAbortableFetch()
-    const listTasks = latestOnly((signal: AbortSignal) => apiFetch<{ items: string[] }>('/api/v1/tasks', { signal }))
-
-    const first = listTasks()
-    api.respondTo(0, { items: ['Buy milk'] })
-    const firstPage = await first
-    const second = listTasks()
-    api.respondTo(1, { items: ['Walk the dog'] })
-
-    expect(firstPage).toEqual({ items: ['Buy milk'] })
-    await expect(second).resolves.toEqual({ items: ['Walk the dog'] })
-  })
-
-  it('does not abort calls made through another latest-only wrapper', async () => {
-    const api = fakeAbortableFetch()
-    const listTasks = latestOnly((signal: AbortSignal) => apiFetch<{ items: string[] }>('/api/v1/tasks', { signal }))
-    const checkHealth = latestOnly((signal: AbortSignal) => apiFetch<{ status: string }>('/api/v1/health', { signal }))
-
-    const tasks = listTasks()
-    const health = checkHealth()
-    api.respondTo(0, { items: [] })
-    api.respondTo(1, { status: 'ok' })
-
-    await expect(tasks).resolves.toEqual({ items: [] })
-    await expect(health).resolves.toEqual({ status: 'ok' })
-  })
-})
+function abortedSignal(reason?: unknown): AbortSignal {
+  const controller = new AbortController()
+  controller.abort(reason)
+  return controller.signal
+}
 
 async function failureOf(request: Promise<unknown>): Promise<unknown> {
   return request.then(
@@ -245,27 +156,67 @@ describe('apiFetch errors', () => {
     expect(failure).toMatchObject({ kind: 'network', status: undefined, fieldErrors: [] })
   })
 
-  it('reports a request aborted through its signal as aborted', async () => {
-    fakeFetch(async () => {
-      throw new DOMException('The operation was aborted.', 'AbortError')
-    })
+  it.each([
+    ['without a reason', () => abortedSignal(), new DOMException('The operation was aborted.', 'AbortError')],
+    ['with a custom reason', () => abortedSignal(new Error('filters changed')), new Error('filters changed')],
+    ['with a reason that is not an Error', () => abortedSignal('filters changed'), 'filters changed'],
+    ['by a timeout', () => AbortSignal.timeout(0), new DOMException('The operation timed out.', 'TimeoutError')],
+  ])('reports a request whose signal was aborted %s as aborted', async (_name, makeSignal, rejection) => {
+    const signal = makeSignal()
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    fakeFetch(() => Promise.reject(rejection))
 
-    const failure = await failureOf(apiFetch('/api/v1/tasks'))
+    const failure = await failureOf(apiFetch('/api/v1/tasks', { signal }))
 
     expect(failure).toBeInstanceOf(ApiError)
     expect(failure).toMatchObject({ kind: 'aborted', status: undefined, fieldErrors: [] })
   })
 
-  it('reports a request aborted while its body was being read as aborted', async () => {
+  it('reports a failed request whose signal was never aborted as network', async () => {
+    fakeFetch(() => Promise.reject(new TypeError('Failed to fetch')))
+
+    const failure = await failureOf(apiFetch('/api/v1/tasks', { signal: new AbortController().signal }))
+
+    expect(failure).toMatchObject({ kind: 'network' })
+  })
+
+  it.each([
+    ['a successful response', 200],
+    ['a 422 response', 422],
+  ])('reports a request aborted while the body of %s was being read as aborted', async (_name, status) => {
+    const controller = new AbortController()
     fakeFetch(async () => {
-      const response = jsonResponse({ items: [] })
-      vi.spyOn(response, 'json').mockRejectedValue(new DOMException('The operation was aborted.', 'AbortError'))
-      return response
+      controller.abort()
+      return brokenBodyResponse(status, controller.signal.reason)
     })
+
+    const failure = await failureOf(apiFetch('/api/v1/tasks', { signal: controller.signal }))
+
+    expect(failure).toMatchObject({ kind: 'aborted', status: undefined })
+  })
+
+  it.each([
+    ['a successful response', 200],
+    ['a 201 response', 201],
+    ['a 422 response', 422],
+  ])('reports a connection lost while the body of %s was being read as network', async (_name, status) => {
+    fakeFetch(async () => brokenBodyResponse(status))
 
     const failure = await failureOf(apiFetch('/api/v1/tasks'))
 
-    expect(failure).toMatchObject({ kind: 'aborted' })
+    expect(failure).toBeInstanceOf(ApiError)
+    expect(failure).toMatchObject({ kind: 'network', status: undefined, fieldErrors: [] })
+  })
+
+  it.each([
+    ['404', 404, 'not_found'],
+    ['500', 500, 'server'],
+  ])('reports a %s response by its status even when its body cannot be read', async (_name, status, kind) => {
+    fakeFetch(async () => brokenBodyResponse(status))
+
+    const failure = await failureOf(apiFetch('/api/v1/tasks/7'))
+
+    expect(failure).toMatchObject({ kind, status })
   })
 
   it('reports a 422 response as validation with the type of each field error', async () => {
@@ -338,18 +289,6 @@ describe('apiFetch errors', () => {
     const failure = await failureOf(apiFetch('/api/v1/tasks'))
 
     expect(failure).toMatchObject({ kind: 'validation', fieldErrors: [{ field: 'status', type: 'enum' }] })
-  })
-
-  it('reports a 422 response aborted while its body was being read as aborted', async () => {
-    fakeFetch(async () => {
-      const response = jsonResponse({ detail: [] }, 422)
-      vi.spyOn(response, 'json').mockRejectedValue(new DOMException('The operation was aborted.', 'AbortError'))
-      return response
-    })
-
-    const failure = await failureOf(apiFetch('/api/v1/tasks'))
-
-    expect(failure).toMatchObject({ kind: 'aborted' })
   })
 
   it('reports a rejection that is not an Error as network', async () => {

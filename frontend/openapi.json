@@ -339,15 +339,7 @@
             "name": "status",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "$ref": "#/components/schemas/TaskStatus"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Status"
+              "$ref": "#/components/schemas/TaskStatus"
             }
           },
           {
@@ -355,15 +347,8 @@
             "name": "search",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Search"
+              "title": "Search",
+              "type": "string"
             }
           },
           {

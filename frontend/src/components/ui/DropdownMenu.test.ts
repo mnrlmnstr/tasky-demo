@@ -226,8 +226,8 @@ describe('DropdownMenu', () => {
     ])
   })
 
-  it('marks no item when the checked value matches none of them', async () => {
-    await mountMenu({ checked: '' })
+  it('is radio-style with no item marked when the checked value is null', async () => {
+    await mountMenu({ checked: null })
 
     await openWithPointer()
 
@@ -236,6 +236,30 @@ describe('DropdownMenu', () => {
       'false',
       'false',
     ])
+  })
+
+  it('does not take a null checked value for an item whose value is empty', async () => {
+    await mountMenu({ checked: null, items: [{ value: '', label: 'Any' }, ...ITEMS] })
+
+    await openWithPointer()
+
+    expect(getItem('Any').getAttribute('aria-checked')).toBe('false')
+  })
+
+  it.each([
+    ['a plain menu', {}],
+    ['a radio-style menu', { checked: 'delete' }],
+  ])('gives the items of %s a keyboard focus ring that is not the hover highlight', async (_name, props) => {
+    await mountMenu(props)
+
+    await openWithKeyboard()
+
+    for (const item of [getItem('Edit'), getItem('Delete')]) {
+      const classes = item.className.split(/\s+/)
+      expect(classes).toContain('data-[highlighted]:bg-surface-muted')
+      expect(classes).toContain('focus-visible:inset-ring-2')
+      expect(classes).toContain('focus-visible:inset-ring-accent')
+    }
   })
 
   it('emits the value of the item chosen in a radio-style menu and leaves the checked value to its owner', async () => {

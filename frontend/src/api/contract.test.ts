@@ -31,7 +31,7 @@ describe('API client contract', () => {
   })
 
   it('leaves a filter that is null out of the list query string', () => {
-    expect(getListTasksUrl({ status: null, search: null })).toBe('/api/v1/tasks')
+    expect(getListTasksUrl({ status: null, search: null } as never)).toBe('/api/v1/tasks')
   })
 
   it('does not ask the API for tasks whose status or search is the text "null"', async () => {
@@ -43,7 +43,7 @@ describe('API client contract', () => {
         }),
     )
 
-    await listTasks({ status: null, search: null, page: 1 })
+    await listTasks({ status: null, search: null, page: 1 } as never)
 
     expect(fetchFake).toHaveBeenCalledWith('/api/v1/tasks?page=1', expect.objectContaining({ method: 'GET' }))
   })

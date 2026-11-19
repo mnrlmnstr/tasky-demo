@@ -13,6 +13,11 @@ export default defineConfig({
           path: './src/api/http.ts',
           name: 'apiFetch',
         },
+        // The built-in serialiser writes a null parameter as the text "null".
+        paramsSerializer: {
+          path: './src/api/query.ts',
+          name: 'toQueryString',
+        },
         fetch: {
           // apiFetch resolves with the parsed body and throws ApiError, so there is no status wrapper.
           includeHttpResponseReturnType: false,

@@ -5,6 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import { apiFetch } from '../http';
+import { toQueryString } from '../query';
 /**
  * The body of a 404 or 500 response.
  */
@@ -106,8 +107,8 @@ export interface TaskUpdate {
 export type GetHealth200 = {[key: string]: string};
 
 export type ListTasksParams = {
-  status?: TaskStatus | null;
-  search?: string | null;
+  status?: TaskStatus;
+  search?: string;
   ordering?: TaskOrdering;
   /** @minimum 1 */
   page?: number;
@@ -141,8 +142,6 @@ const getHeaders = (...sources: (RequestInit['headers'] | Record<string, string 
 export const getGetHealthUrl = () => {
 
 
-
-
   return `/api/v1/health`
 }
 
@@ -163,16 +162,7 @@ export const getHealth = async ( options?: Parameters<typeof apiFetch>[1]): Prom
 
 
 export const getListTasksUrl = (params?: ListTasksParams,) => {
-  const normalizedParams = new URLSearchParams();
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-
-    if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : String(value))
-    }
-  });
-
-  const stringifiedParams = normalizedParams.toString();
+  const stringifiedParams = toQueryString(params);
 
   return stringifiedParams.length > 0 ? `/api/v1/tasks?${stringifiedParams}` : `/api/v1/tasks`
 }
@@ -194,8 +184,6 @@ export const listTasks = async (params?: ListTasksParams, options?: Parameters<t
 
 
 export const getCreateTaskUrl = () => {
-
-
 
 
   return `/api/v1/tasks`
@@ -220,8 +208,6 @@ export const createTask = async (taskCreate: TaskCreate, options?: Parameters<ty
 export const getDeleteTaskUrl = (taskId: string,) => {
 
 
-
-
   return `/api/v1/tasks/${taskId}`
 }
 
@@ -244,8 +230,6 @@ export const deleteTask = async (taskId: string, options?: Parameters<typeof api
 export const getGetTaskUrl = (taskId: string,) => {
 
 
-
-
   return `/api/v1/tasks/${taskId}`
 }
 
@@ -266,8 +250,6 @@ export const getTask = async (taskId: string, options?: Parameters<typeof apiFet
 
 
 export const getUpdateTaskUrl = (taskId: string,) => {
-
-
 
 
   return `/api/v1/tasks/${taskId}`

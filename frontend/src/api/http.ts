@@ -1,5 +1,3 @@
-export const API_BASE_URL = '/api/v1'
-
 const NO_CONTENT = 204
 const NOT_FOUND = 404
 const UNPROCESSABLE = 422
@@ -25,33 +23,32 @@ export class ApiError extends Error {
   }
 }
 
-// The OpenAPI spec lists full paths, so generated callers arrive with the base already in place.
-function underBase(path: string): string {
-  const alreadyUnderBase = path === API_BASE_URL || path.startsWith(`${API_BASE_URL}/`)
-  return alreadyUnderBase ? path : `${API_BASE_URL}${path}`
-}
-
-function isAbort(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'name' in error && error.name === 'AbortError'
+// The caller's signal decides: an abort with a custom reason or a timeout does not reject with an AbortError.
+function interrupted(options: RequestInit): ApiError {
+  return new ApiError(options.signal?.aborted ? 'aborted' : 'network')
 }
 
 async function send(url: string, options: RequestInit): Promise<Response> {
   try {
     return await fetch(url, options)
-  } catch (error) {
-    throw new ApiError(isAbort(error) ? 'aborted' : 'network')
+  } catch {
+    throw interrupted(options)
   }
 }
 
 const NOT_JSON = Symbol('not JSON')
 
-async function readJson(response: Response): Promise<unknown> {
+// A body that never fully arrives is a lost connection; only one that arrives and does not parse is not JSON.
+async function readJson(response: Response, options: RequestInit): Promise<unknown> {
+  let text: string
   try {
-    return await response.json()
-  } catch (error) {
-    if (isAbort(error)) {
-      throw new ApiError('aborted')
-    }
+    text = await response.text()
+  } catch {
+    throw interrupted(options)
+  }
+  try {
+    return JSON.parse(text)
+  } catch {
     return NOT_JSON
   }
 }
@@ -74,39 +71,27 @@ function toFieldErrors(body: unknown): FieldError[] {
   return body.detail.flatMap(toFieldError)
 }
 
-async function failureOf(response: Response): Promise<ApiError> {
+async function failureOf(response: Response, options: RequestInit): Promise<ApiError> {
   if (response.status === NOT_FOUND) {
     return new ApiError('not_found', response.status)
   }
   if (response.status === UNPROCESSABLE) {
-    return new ApiError('validation', response.status, toFieldErrors(await readJson(response)))
+    return new ApiError('validation', response.status, toFieldErrors(await readJson(response, options)))
   }
   return new ApiError('server', response.status)
 }
 
 export async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
-  const response = await send(underBase(url), options)
+  const response = await send(url, options)
   if (!response.ok) {
-    throw await failureOf(response)
+    throw await failureOf(response, options)
   }
   if (response.status === NO_CONTENT) {
     return undefined as T
   }
-  const body = await readJson(response)
+  const body = await readJson(response, options)
   if (body === NOT_JSON) {
     throw new ApiError('server', response.status)
   }
   return body as T
-}
-
-// Wraps a request so that starting it again aborts the call still in flight.
-export function latestOnly<Args extends unknown[], T>(
-  request: (signal: AbortSignal, ...args: Args) => Promise<T>,
-): (...args: Args) => Promise<T> {
-  let inFlight: AbortController | undefined
-  return (...args) => {
-    inFlight?.abort()
-    inFlight = new AbortController()
-    return request(inFlight.signal, ...args)
-  }
 }

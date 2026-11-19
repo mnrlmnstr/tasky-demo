@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { LoaderCircle } from 'lucide-vue-next'
 
+import { CONTROL_CLASS } from './control'
+
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
@@ -29,8 +31,8 @@ const {
     :disabled="disabled || loading"
     :aria-busy="loading ? 'true' : undefined"
     :data-variant="variant"
-    class="inline-flex h-9 cursor-pointer items-center justify-center gap-2 rounded-control px-3.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-50"
-    :class="VARIANT_CLASSES[variant]"
+    class="h-9 gap-2 rounded-control px-3.5 text-sm font-medium"
+    :class="[CONTROL_CLASS, VARIANT_CLASSES[variant]]"
   >
     <LoaderCircle
       v-if="loading"
