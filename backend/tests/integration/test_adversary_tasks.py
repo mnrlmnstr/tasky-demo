@@ -182,3 +182,29 @@ async def test_422_body_echoing_non_finite_number_is_valid_json(
     assert response.status_code == 422
     body = json.loads(response.text, parse_constant=_reject_non_json_constant)
     assert isinstance(body["detail"], list)
+
+
+# #5: "Unknown or read-only fields in a request body -> 422" and "Blank or over-long title,
+# unknown status/priority -> 422 with a field-level message". The 422 renderer echoes the
+# offending input back; a deeply nested (but well-formed) value must still get the 422.
+_DEEP = 1000
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "raw",
+    [
+        b'{"title": "t", "x": ' + b"[" * _DEEP + b"1" + b"]" * _DEEP + b"}",
+        b'{"title": ' + b'{"a":' * _DEEP + b"1" + b"}" * _DEEP + b"}",
+    ],
+    ids=["unknown-field-nested-lists", "title-nested-objects"],
+)
+async def test_422_body_echoing_deeply_nested_input_is_not_a_500(
+    rollback_client: httpx.AsyncClient, raw: bytes
+) -> None:
+    response = await rollback_client.post(
+        TASKS, content=raw, headers={"content-type": "application/json"}
+    )
+
+    assert response.status_code == 422, response.text
+    assert isinstance(response.json()["detail"], list)
