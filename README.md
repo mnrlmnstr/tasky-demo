@@ -12,7 +12,7 @@ Task model:
 
 | Field        | Type                              | Notes                          |
 | ------------ | --------------------------------- | ------------------------------ |
-| `id`         | integer                           | primary key                    |
+| `id`         | UUID (v4)                         | primary key, set by the server |
 | `title`      | string (1–200)                    | required                       |
 | `description`| text                              | optional                       |
 | `status`     | `todo` \| `in_progress` \| `done` | default `todo`                 |
@@ -102,6 +102,7 @@ tasky-demo/
 │   │   ├── services/     # business logic / queries
 │   │   └── main.py
 │   ├── alembic/          # migrations
+│   ├── alembic.ini
 │   ├── tests/
 │   ├── Dockerfile
 │   ├── entrypoint.sh     # migrations, demo data, then the server
