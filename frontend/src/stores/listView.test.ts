@@ -301,8 +301,8 @@ describe('values the types do not allow', () => {
 })
 
 describe('clearing the filters', () => {
-  it('returns the search, status, ordering and page to their defaults', async () => {
-    addressIs('/?search=report&status=done&ordering=deadline&page=4')
+  it('returns the search, status and page to their defaults', async () => {
+    addressIs('/?search=report&status=done&page=4')
     const view = loadStore()
 
     view.clearFilters()
@@ -310,9 +310,29 @@ describe('clearing the filters', () => {
 
     expect(view.search).toBe('')
     expect(view.status).toBe('all')
-    expect(view.ordering).toBe('-created_at')
     expect(view.page).toBe(1)
     expect(address()).toBe('/')
+  })
+
+  it('keeps the ordering, which is not a filter', async () => {
+    addressIs('/?search=report&status=done&ordering=deadline&page=4')
+    const view = loadStore()
+
+    view.clearFilters()
+    await nextTick()
+
+    expect(view.ordering).toBe('deadline')
+    expect(address()).toBe('/?ordering=deadline')
+  })
+
+  it('leaves the page alone when no filter is set', async () => {
+    addressIs('/?ordering=deadline&page=4')
+    const view = loadStore()
+
+    view.clearFilters()
+    await nextTick()
+
+    expect(address()).toBe('/?ordering=deadline&page=4')
   })
 })
 
@@ -532,7 +552,7 @@ describe('remembering the view', () => {
 
     view.clearFilters()
 
-    expect(savedView()).toEqual({ search: '', status: 'all', ordering: '-created_at' })
+    expect(savedView()).toEqual({ search: '', status: 'all', ordering: 'deadline' })
   })
 
   it('saves the view a shared address opened', () => {

@@ -28,13 +28,6 @@ interface View extends Filters {
   page: number
 }
 
-const DEFAULT_VIEW: View = {
-  search: DEFAULT_SEARCH,
-  status: DEFAULT_STATUS,
-  ordering: DEFAULT_ORDERING,
-  page: FIRST_PAGE,
-}
-
 const OWNED_PARAMS = ['search', 'status', 'ordering', 'page'] as const
 type OwnedParam = (typeof OWNED_PARAMS)[number]
 
@@ -178,7 +171,7 @@ export const useListViewStore = defineStore('listView', () => {
   })
 
   function clearFilters(): void {
-    change(DEFAULT_VIEW, { addsHistoryEntry: true })
+    filter({ search: DEFAULT_SEARCH, status: DEFAULT_STATUS }, { addsHistoryEntry: true })
   }
 
   const addressDescribesView = OWNED_PARAMS.some((name) => name in params)
