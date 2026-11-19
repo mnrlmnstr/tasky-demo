@@ -1,7 +1,8 @@
 """Integration fixtures on a real PostgreSQL test database.
 
-tests/conftest.py points DATABASE_URL at `<app database>_test` on the same server
-(or at TEST_DATABASE_URL when set). The database is created on first use and kept.
+The `test_settings` fixture in tests/conftest.py points the settings at
+`<app database>_test` on the same server (or at TEST_DATABASE_URL when set).
+The database is created on first use and kept.
 """
 
 from collections.abc import AsyncIterator
@@ -18,7 +19,8 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engin
 from sqlalchemy.pool import NullPool
 
 from app.core.config import get_settings
-from app.main import app
+from app.main import create_app
+from tests.asgi import app_client
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
@@ -41,7 +43,7 @@ async def _create_database_if_missing(url: str) -> None:
 
 
 @pytest.fixture(scope="session")
-async def test_database_url() -> str:
+async def test_database_url(test_settings: None) -> str:
     url = get_settings().database_url
     await _create_database_if_missing(url)
     return url
@@ -106,8 +108,7 @@ async def db_session(db_engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
 
 
 @pytest.fixture
-async def client(test_database_url: str) -> AsyncIterator[httpx.AsyncClient]:
-    """The real app over ASGI, with its own engine and `get_session` on the test database."""
-    transport = httpx.ASGITransport(app=app)
-    async with httpx.AsyncClient(transport=transport, base_url="http://test") as http:
+async def client(migrated_database: str) -> AsyncIterator[httpx.AsyncClient]:
+    """The real app over ASGI; its lifespan builds the engine from the test settings."""
+    async with app_client(create_app()) as http:
         yield http

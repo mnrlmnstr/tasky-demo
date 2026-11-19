@@ -1,15 +1,26 @@
 from collections.abc import AsyncIterator
 
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from fastapi import Request
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
-from app.core.config import get_settings
-
-_settings = get_settings()
-
-engine = create_async_engine(_settings.database_url, echo=_settings.debug, pool_pre_ping=True)
-session_factory = async_sessionmaker(engine, expire_on_commit=False)
+from app.core.config import Settings
 
 
-async def get_session() -> AsyncIterator[AsyncSession]:
+def create_engine(settings: Settings) -> AsyncEngine:
+    return create_async_engine(settings.database_url, echo=settings.debug, pool_pre_ping=True)
+
+
+def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    return async_sessionmaker(engine, expire_on_commit=False)
+
+
+async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
+    # Set by the app's lifespan (app.main.create_app).
+    session_factory: async_sessionmaker[AsyncSession] = request.app.state.session_factory
     async with session_factory() as session:
         yield session
