@@ -29,11 +29,49 @@
   --color-warning-text: #9a5b00;
   --color-danger-soft: #fde8e8;
   --color-danger-text: #c42b2b;
+  --color-danger: #c93030;
+  --color-danger-hover: #ad2626;
+  --color-danger-contrast: #ffffff;
 
   --radius-control: 8px;
   --radius-card: 12px;
 
+  --color-scrim: rgb(16 24 40 / 0.4);
+
   --shadow-raised: 0 1px 2px rgb(16 24 40 / 0.08);
+  --shadow-overlay: 0 12px 32px rgb(16 24 40 / 0.16);
+
+  /* Overlay motion: driven by the data-state attribute reka-ui sets on open and close. */
+  --animate-fade-in: fade-in 150ms ease-out;
+  --animate-fade-out: fade-out 150ms ease-in;
+  --animate-pop-in: pop-in 150ms ease-out;
+  --animate-pop-out: pop-out 150ms ease-in;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      scale: 0.96;
+    }
+  }
+
+  @keyframes pop-out {
+    to {
+      opacity: 0;
+      scale: 0.96;
+    }
+  }
 
   --default-transition-duration: 150ms;
 }
@@ -63,8 +101,14 @@
   --color-warning-text: #f0b95a;
   --color-danger-soft: #3a1a1a;
   --color-danger-text: #ff8080;
+  --color-danger: #d13b3b;
+  --color-danger-hover: #e05252;
+  --color-danger-contrast: #ffffff;
+
+  --color-scrim: rgb(0 0 0 / 0.6);
 
   --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-overlay: 0 12px 32px rgb(0 0 0 / 0.5);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -92,8 +136,14 @@
     --color-warning-text: #f0b95a;
     --color-danger-soft: #3a1a1a;
     --color-danger-text: #ff8080;
+    --color-danger: #d13b3b;
+    --color-danger-hover: #e05252;
+    --color-danger-contrast: #ffffff;
+
+    --color-scrim: rgb(0 0 0 / 0.6);
 
     --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-overlay: 0 12px 32px rgb(0 0 0 / 0.5);
   }
 }
 

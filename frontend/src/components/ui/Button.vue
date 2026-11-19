@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { LoaderCircle } from 'lucide-vue-next'
 
-export type ButtonVariant = 'primary' | 'secondary' | 'ghost'
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary: 'bg-accent text-accent-contrast hover:bg-accent-hover',
   secondary: 'border border-border bg-surface text-text hover:bg-surface-muted',
   ghost: 'text-text hover:bg-surface-muted',
+  danger: 'bg-danger text-danger-contrast hover:bg-danger-hover',
 }
 
 const {

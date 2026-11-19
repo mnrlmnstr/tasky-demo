@@ -26,7 +26,7 @@ describe('Button', () => {
     expect(button.emitted('click')).toHaveLength(1)
   })
 
-  it.each(['primary', 'secondary', 'ghost'] as const)(
+  it.each(['primary', 'secondary', 'ghost', 'danger'] as const)(
     'exposes the %s variant it was given',
     (variant) => {
       const button = mount(Button, { props: { variant }, slots: { default: 'Save' } })
