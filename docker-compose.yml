@@ -91,6 +91,17 @@ services:
         - action: sync+restart
           path: ./frontend/vite.config.ts
           target: /app/vite.config.ts
+        # Not read by the dev server: synced so `npm run api:generate` and `npm run typecheck`
+        # inside the container see the same files as the host.
+        - action: sync
+          path: ./frontend/openapi.json
+          target: /app/openapi.json
+        - action: sync
+          path: ./frontend/orval.config.ts
+          target: /app/orval.config.ts
+        - action: sync
+          path: ./frontend/tsconfig.json
+          target: /app/tsconfig.json
         - action: rebuild
           path: ./frontend/package.json
         - action: rebuild

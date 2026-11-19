@@ -147,6 +147,15 @@ docker compose exec backend ruff check .
 docker compose exec backend ruff format --check .
 ```
 
+Regenerate the API client after an API change (on the host; needs the backend virtualenv and `npm install` in `frontend/`):
+
+```bash
+cd backend && .venv/bin/python -m scripts.export_openapi   # writes frontend/openapi.json
+cd ../frontend && npm run api:generate                     # rewrites frontend/src/api/generated
+```
+
+Both outputs are committed. `frontend/src/api/generated` is never edited by hand, and nothing checks that it matches the API: run the two commands whenever a route or schema changes.
+
 End-to-end check of the whole Compose setup (needs `curl` on the host):
 
 ```bash
