@@ -31,6 +31,7 @@
       "Page_TaskRead_": {
         "properties": {
           "items": {
+            "description": "The items on this page.",
             "items": {
               "$ref": "#/components/schemas/TaskRead"
             },
@@ -38,18 +39,34 @@
             "type": "array"
           },
           "page": {
+            "description": "This page's number, from 1.",
+            "examples": [
+              1
+            ],
             "title": "Page",
             "type": "integer"
           },
           "page_size": {
+            "description": "The most items a page holds.",
+            "examples": [
+              20
+            ],
             "title": "Page Size",
             "type": "integer"
           },
           "pages": {
+            "description": "How many pages there are in all.",
+            "examples": [
+              3
+            ],
             "title": "Pages",
             "type": "integer"
           },
           "total": {
+            "description": "How many items match, across all pages.",
+            "examples": [
+              42
+            ],
             "title": "Total",
             "type": "integer"
           }
@@ -77,6 +94,10 @@
                 "type": "null"
               }
             ],
+            "description": "When the task is due, with a timezone; returned in UTC.",
+            "examples": [
+              "2026-12-01T17:00:00Z"
+            ],
             "title": "Deadline"
           },
           "description": {
@@ -88,17 +109,33 @@
                 "type": "null"
               }
             ],
+            "description": "Free-text details.",
+            "examples": [
+              "Collect the numbers from finance and draft the summary."
+            ],
             "title": "Description"
           },
           "priority": {
             "$ref": "#/components/schemas/TaskPriority",
-            "default": "medium"
+            "default": "medium",
+            "description": "How urgent the task is.",
+            "examples": [
+              "high"
+            ]
           },
           "status": {
             "$ref": "#/components/schemas/TaskStatus",
-            "default": "todo"
+            "default": "todo",
+            "description": "Where the task stands.",
+            "examples": [
+              "todo"
+            ]
           },
           "title": {
+            "description": "What the task is, 1 to 200 characters; surrounding whitespace is trimmed.",
+            "examples": [
+              "Prepare the quarterly report"
+            ],
             "maxLength": 200,
             "minLength": 1,
             "title": "Title",
@@ -134,6 +171,10 @@
       "TaskRead": {
         "properties": {
           "created_at": {
+            "description": "When the task was created, in UTC.",
+            "examples": [
+              "2026-11-02T09:30:00Z"
+            ],
             "format": "date-time",
             "title": "Created At",
             "type": "string"
@@ -148,6 +189,10 @@
                 "type": "null"
               }
             ],
+            "description": "When the task is due, in UTC.",
+            "examples": [
+              "2026-12-01T17:00:00Z"
+            ],
             "title": "Deadline"
           },
           "description": {
@@ -159,24 +204,48 @@
                 "type": "null"
               }
             ],
+            "description": "Free-text details.",
+            "examples": [
+              "Collect the numbers from finance and draft the summary."
+            ],
             "title": "Description"
           },
           "id": {
+            "description": "The task's id.",
+            "examples": [
+              "3f2b8c1e-6d4a-4f7e-9a51-2c8d7e0b4a19"
+            ],
             "format": "uuid",
             "title": "Id",
             "type": "string"
           },
           "priority": {
-            "$ref": "#/components/schemas/TaskPriority"
+            "$ref": "#/components/schemas/TaskPriority",
+            "description": "How urgent the task is.",
+            "examples": [
+              "medium"
+            ]
           },
           "status": {
-            "$ref": "#/components/schemas/TaskStatus"
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Where the task stands.",
+            "examples": [
+              "in_progress"
+            ]
           },
           "title": {
+            "description": "What the task is.",
+            "examples": [
+              "Prepare the quarterly report"
+            ],
             "title": "Title",
             "type": "string"
           },
           "updated_at": {
+            "description": "When the task last changed, in UTC.",
+            "examples": [
+              "2026-11-03T14:05:00Z"
+            ],
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
@@ -218,6 +287,10 @@
                 "type": "null"
               }
             ],
+            "description": "When the task is due, with a timezone; returned in UTC. Send `null` to clear it.",
+            "examples": [
+              "2026-12-01T17:00:00Z"
+            ],
             "title": "Deadline"
           },
           "description": {
@@ -229,15 +302,31 @@
                 "type": "null"
               }
             ],
+            "description": "Free-text details. Send `null` to clear it.",
+            "examples": [
+              "Collect the numbers from finance and draft the summary."
+            ],
             "title": "Description"
           },
           "priority": {
-            "$ref": "#/components/schemas/TaskPriority"
+            "$ref": "#/components/schemas/TaskPriority",
+            "description": "How urgent the task is.",
+            "examples": [
+              "low"
+            ]
           },
           "status": {
-            "$ref": "#/components/schemas/TaskStatus"
+            "$ref": "#/components/schemas/TaskStatus",
+            "description": "Where the task stands.",
+            "examples": [
+              "done"
+            ]
           },
           "title": {
+            "description": "What the task is, 1 to 200 characters; surrounding whitespace is trimmed.",
+            "examples": [
+              "Prepare the quarterly report"
+            ],
             "maxLength": 200,
             "minLength": 1,
             "title": "Title",
@@ -290,6 +379,7 @@
     }
   },
   "info": {
+    "description": "\nA small task tracker: create, list, update and delete tasks.\n\nAll endpoints live under `/api/v1`.\n\n**Errors.** A missing task is a `404` with `{\"detail\": \"Task not found\"}`. A request that\nfails validation is a `422` whose `detail` lists the problems, one per field. Any other\nfailure is a `500` with `{\"detail\": \"Internal server error\"}`.\n\n**Soft delete.** Deleting a task hides it: it no longer appears in lists, and reading,\nupdating or deleting it again answers `404`.\n",
     "title": "Tasky API",
     "version": "0.1.0"
   },
@@ -297,6 +387,7 @@
   "paths": {
     "/api/v1/health": {
       "get": {
+        "description": "`200` with `{\"status\": \"ok\"}` when the database answers, otherwise `503` with\n`{\"status\": \"unavailable\"}`.",
         "operationId": "getHealth",
         "responses": {
           "200": {
@@ -324,7 +415,7 @@
             "description": "Internal server error"
           }
         },
-        "summary": "Get Health",
+        "summary": "Check health",
         "tags": [
           "health"
         ]
@@ -332,51 +423,77 @@
     },
     "/api/v1/tasks": {
       "get": {
+        "description": "One page of tasks, newest first unless `ordering` says otherwise. Filter by `status`\nand search titles with `search`. Deleted tasks never appear.",
         "operationId": "listTasks",
         "parameters": [
           {
+            "description": "Only tasks with this status.",
             "in": "query",
             "name": "status",
             "required": false,
             "schema": {
-              "$ref": "#/components/schemas/TaskStatus"
+              "$ref": "#/components/schemas/TaskStatus",
+              "description": "Only tasks with this status.",
+              "examples": [
+                "in_progress"
+              ]
             }
           },
           {
+            "description": "Only tasks whose title contains this text, ignoring case.",
             "in": "query",
             "name": "search",
             "required": false,
             "schema": {
+              "description": "Only tasks whose title contains this text, ignoring case.",
+              "examples": [
+                "\u0437\u0432\u0456\u0442"
+              ],
               "title": "Search",
               "type": "string"
             }
           },
           {
+            "description": "Sort by `created_at` or `deadline`; a leading `-` sorts descending. Tasks without a deadline come last either way.",
             "in": "query",
             "name": "ordering",
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/TaskOrdering",
-              "default": "-created_at"
+              "default": "-created_at",
+              "description": "Sort by `created_at` or `deadline`; a leading `-` sorts descending. Tasks without a deadline come last either way.",
+              "examples": [
+                "deadline"
+              ]
             }
           },
           {
+            "description": "Which page to return, from 1.",
             "in": "query",
             "name": "page",
             "required": false,
             "schema": {
               "default": 1,
+              "description": "Which page to return, from 1.",
+              "examples": [
+                1
+              ],
               "minimum": 1,
               "title": "Page",
               "type": "integer"
             }
           },
           {
+            "description": "How many tasks per page (1 to 100).",
             "in": "query",
             "name": "page_size",
             "required": false,
             "schema": {
               "default": 20,
+              "description": "How many tasks per page (1 to 100).",
+              "examples": [
+                20
+              ],
               "maximum": 100,
               "minimum": 1,
               "title": "Page Size",
@@ -416,16 +533,35 @@
             "description": "Internal server error"
           }
         },
-        "summary": "List Tasks",
+        "summary": "List tasks",
         "tags": [
           "tasks"
         ]
       },
       "post": {
+        "description": "Create a task. Only `title` is required; status defaults to `todo` and priority to\n`medium`. A `deadline` must carry a timezone and is returned in UTC.",
         "operationId": "createTask",
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "full": {
+                  "summary": "A task with every field",
+                  "value": {
+                    "deadline": "2026-12-01T17:00:00Z",
+                    "description": "Collect the numbers from finance and draft the summary.",
+                    "priority": "high",
+                    "status": "todo",
+                    "title": "Prepare the quarterly report"
+                  }
+                },
+                "minimal": {
+                  "summary": "Only a title",
+                  "value": {
+                    "title": "Call the plumber"
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/TaskCreate"
               }
@@ -465,7 +601,7 @@
             "description": "Internal server error"
           }
         },
-        "summary": "Create Task",
+        "summary": "Create a task",
         "tags": [
           "tasks"
         ]
@@ -473,6 +609,7 @@
     },
     "/api/v1/tasks/{task_id}": {
       "delete": {
+        "description": "Soft-delete a task: it is kept but hidden, so reading, updating or deleting it again\nanswers `404`.",
         "operationId": "deleteTask",
         "parameters": [
           {
@@ -521,12 +658,13 @@
             "description": "Internal server error"
           }
         },
-        "summary": "Delete Task",
+        "summary": "Delete a task",
         "tags": [
           "tasks"
         ]
       },
       "get": {
+        "description": "The task with this id. A deleted task answers `404`.",
         "operationId": "getTask",
         "parameters": [
           {
@@ -582,12 +720,13 @@
             "description": "Internal server error"
           }
         },
-        "summary": "Get Task",
+        "summary": "Get a task",
         "tags": [
           "tasks"
         ]
       },
       "patch": {
+        "description": "Change some fields of a task; fields left out keep their value. `title`, `status` and\n`priority` can't be set to null; send `null` for `description` or `deadline` to clear it.\nA deleted task answers `404`.",
         "operationId": "updateTask",
         "parameters": [
           {
@@ -604,6 +743,27 @@
         "requestBody": {
           "content": {
             "application/json": {
+              "examples": {
+                "change_status": {
+                  "summary": "Change the status",
+                  "value": {
+                    "status": "done"
+                  }
+                },
+                "clear_deadline": {
+                  "summary": "Clear the deadline",
+                  "value": {
+                    "deadline": null
+                  }
+                },
+                "several_fields": {
+                  "summary": "Change several fields",
+                  "value": {
+                    "priority": "medium",
+                    "title": "Prepare the annual report"
+                  }
+                }
+              },
               "schema": {
                 "$ref": "#/components/schemas/TaskUpdate"
               }
@@ -653,11 +813,21 @@
             "description": "Internal server error"
           }
         },
-        "summary": "Update Task",
+        "summary": "Update a task",
         "tags": [
           "tasks"
         ]
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "description": "Create, list, read, update and delete tasks.",
+      "name": "tasks"
+    },
+    {
+      "description": "Whether the API and its database are up.",
+      "name": "health"
+    }
+  ]
 }
