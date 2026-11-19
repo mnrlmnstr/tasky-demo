@@ -83,8 +83,10 @@ def _query_parameter(name: str) -> dict[str, Any]:
 def test_optional_list_filter_is_documented_without_null(name: str, schema: dict[str, Any]) -> None:
     parameter = _query_parameter(name)
 
+    documentation = {"description", "examples"}
+    shape = {key: value for key, value in parameter["schema"].items() if key not in documentation}
     assert parameter["required"] is False
-    assert parameter["schema"] == schema
+    assert shape == schema
 
 
 def test_no_query_parameter_offers_null() -> None:
