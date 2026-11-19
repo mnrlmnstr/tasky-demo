@@ -5,8 +5,9 @@ The `test_settings` fixture in tests/conftest.py points the settings at
 The database is created on first use and kept.
 """
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
+from typing import Any
 
 import anyio
 import httpx
@@ -19,7 +20,9 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engin
 from sqlalchemy.pool import NullPool
 
 from app.core.config import get_settings
+from app.core.database import get_session
 from app.main import create_app
+from app.models.task import Task
 from tests.asgi import app_client
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
@@ -111,4 +114,36 @@ async def db_session(db_engine: AsyncEngine) -> AsyncIterator[AsyncSession]:
 async def client(migrated_database: str) -> AsyncIterator[httpx.AsyncClient]:
     """The real app over ASGI; its lifespan builds the engine from the test settings."""
     async with app_client(create_app()) as http:
+        yield http
+
+
+type AddTask = Callable[..., Awaitable[Task]]
+
+
+@pytest.fixture
+def add_task(db_session: AsyncSession) -> AddTask:
+    """Save a task straight to `db_session` (rolled back after), with any field set explicitly.
+
+    Lets tests fix `created_at` and `deleted_at`, which the API sets from the clock.
+    """
+
+    async def _add(**fields: Any) -> Task:
+        task = Task(**fields)
+        db_session.add(task)
+        await db_session.commit()
+        return task
+
+    return _add
+
+
+@pytest.fixture
+async def rollback_client(db_session: AsyncSession) -> AsyncIterator[httpx.AsyncClient]:
+    """The real app, with every request using `db_session`, so its writes are rolled back."""
+
+    async def _session() -> AsyncIterator[AsyncSession]:
+        yield db_session
+
+    app = create_app()
+    app.dependency_overrides[get_session] = _session
+    async with app_client(app) as http:
         yield http

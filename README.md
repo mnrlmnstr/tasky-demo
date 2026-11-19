@@ -52,7 +52,7 @@ A UI for the API that lets the user:
 | Tests    | pytest, httpx, Vitest                                         |
 | Infra    | Docker, Docker Compose                                        |
 
-## Planned API
+## API
 
 Base path: `/api/v1`
 
@@ -70,10 +70,10 @@ Query parameters for `GET /tasks`:
 | Param       | Example           | Description                                                        |
 | ----------- | ----------------- | ------------------------------------------------------------------ |
 | `status`    | `in_progress`     | filter by status                                                   |
-| `search`    | `report`          | case-insensitive match on title                                    |
-| `ordering`  | `-created_at`     | `created_at`, `deadline`; prefix with `-` for descending           |
-| `page`      | `1`               | page number, starting at 1                                         |
-| `page_size` | `20`              | items per page (max 100)                                           |
+| `search`    | `report`          | case-insensitive substring of title; `%` and `_` match literally   |
+| `ordering`  | `-created_at`     | `created_at`, `deadline`; prefix `-` for descending; default `-created_at`; no deadline sorts last |
+| `page`      | `1`               | page number, starting at 1 (default 1)                             |
+| `page_size` | `20`              | items per page, 1–100 (default 20)                                 |
 
 List response shape:
 
@@ -87,7 +87,17 @@ List response shape:
 }
 ```
 
-Interactive docs will be served at `/docs` (Swagger UI) and `/redoc`.
+`DELETE` is a soft delete: the task is kept in the database but disappears from the API (getting, updating or deleting it again answers 404, and lists leave it out). There is no restore.
+
+Errors:
+
+| Status | When                                              | Body                                                       |
+| ------ | ------------------------------------------------- | ---------------------------------------------------------- |
+| `404`  | no task with that id, or it was deleted           | `{"detail": "Task not found"}`                              |
+| `422`  | invalid body, query parameter or id               | `{"detail": [{"loc": [...], "msg": "...", "type": "..."}]}` |
+| `500`  | unexpected server error (details go to the log)   | `{"detail": "Internal server error"}`                       |
+
+Interactive docs are served at `/docs` (Swagger UI) and `/redoc`.
 
 ## Project structure (planned)
 
@@ -129,7 +139,7 @@ docker compose up
 
 That one command starts the database, the backend and the frontend. No `.env` file is needed: the compose file has working defaults.
 
-> For now the application is a placeholder page that reports whether the API is healthy, and the API has only the health route. The backend applies the database migrations every time it starts. Loading demo tasks on start is not implemented yet: it arrives with [issue #10](https://github.com/mnrlmnstr/tasky-demo/issues/10).
+> For now the application is a placeholder page that reports whether the API is healthy; the API serves the health and task routes described above. The backend applies the database migrations every time it starts. Loading demo tasks on start is not implemented yet: it arrives with [issue #10](https://github.com/mnrlmnstr/tasky-demo/issues/10).
 
 | What        | URL                         |
 | ----------- | --------------------------- |
@@ -137,7 +147,7 @@ That one command starts the database, the backend and the frontend. No `.env` fi
 | Swagger UI  | http://localhost:8000/docs  |
 | API health  | http://localhost:8000/api/v1/health |
 
-Every API route lives under the base path `/api/v1`. The base path itself answers 404, and the health route is the only one that exists so far.
+Every API route lives under the base path `/api/v1`. The base path itself answers 404.
 
 The frontend proxies `/api` to the backend, so the browser only talks to `localhost:8080`. PostgreSQL is not published to the host.
 
