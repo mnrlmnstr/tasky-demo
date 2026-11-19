@@ -65,6 +65,20 @@ async def test_seed_does_nothing_when_tasks_already_exist(client: httpx.AsyncCli
 
 @pytest.mark.anyio
 @pytest.mark.usefixtures("empty_tasks")
+async def test_the_documented_search_example_finds_seeded_tasks(
+    client: httpx.AsyncClient,
+) -> None:
+    await run_seed()
+    parameters = (await client.get("/openapi.json")).json()["paths"][TASKS]["get"]["parameters"]
+    [search] = [p for p in parameters if p["name"] == "search"]
+
+    found = (await client.get(TASKS, params={"search": search["schema"]["examples"][0]})).json()
+
+    assert found["total"] > 1
+
+
+@pytest.mark.anyio
+@pytest.mark.usefixtures("empty_tasks")
 async def test_seed_does_nothing_when_the_only_tasks_are_deleted(
     client: httpx.AsyncClient,
 ) -> None:

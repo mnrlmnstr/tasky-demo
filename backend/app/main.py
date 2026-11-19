@@ -10,7 +10,6 @@ from app.core.database import create_engine, create_session_factory
 from app.core.logging import configure_logging
 
 API_PREFIX = "/api/v1"
-ROUTERS = (health.router, tasks.router)
 
 
 @asynccontextmanager
@@ -29,14 +28,14 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Tasky API",
         description=openapi.description(API_PREFIX),
-        version="1.0.0",
+        version="0.1.0",
         openapi_tags=openapi.TAGS,
         lifespan=lifespan,
     )
     install_error_handling(app)
-    for router in ROUTERS:
+    for router in (health.router, tasks.router):
         app.include_router(router, prefix=API_PREFIX)
-    openapi.install_openapi(app, API_PREFIX, ROUTERS)
+    openapi.install_openapi(app)
     return app
 
 

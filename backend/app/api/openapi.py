@@ -1,10 +1,9 @@
 """What the OpenAPI document says about the API as a whole, beyond its routes."""
 
-from collections.abc import Sequence
 from typing import Any
 
-from fastapi import APIRouter, FastAPI
-from fastapi.routing import APIRoute
+from fastapi import FastAPI
+from fastapi.routing import APIRoute, iter_route_contexts
 
 
 def description(api_prefix: str) -> str:
@@ -28,32 +27,31 @@ TAGS = [
 ]
 
 
-def _restore_body_example_values(
-    schema: dict[str, Any], prefix: str, routers: Sequence[APIRouter]
-) -> None:
+def _restore_body_example_values(schema: dict[str, Any], app: FastAPI) -> None:
     """Puts each request-body example's value back as declared.
 
     FastAPI drops every null from the document, so `{"deadline": null}` would show as `{}`.
+    Routes come from the app itself, with their full paths, so every included router counts.
     """
-    for router in routers:
-        for route in router.routes:
-            if not isinstance(route, APIRoute) or route.body_field is None:
-                continue
-            declared = getattr(route.body_field.field_info, "openapi_examples", None) or {}
-            for method in route.methods:
-                operation = schema["paths"][prefix + route.path_format][method.lower()]
-                shown = operation["requestBody"]["content"]["application/json"].get("examples", {})
-                for name, example in declared.items():
-                    shown[name]["value"] = example["value"]
+    for context in iter_route_contexts(app.routes):
+        route = context.original_route
+        if not isinstance(route, APIRoute) or route.body_field is None:
+            continue
+        declared = getattr(route.body_field.field_info, "openapi_examples", None) or {}
+        for method in context.methods or ():
+            operation = schema["paths"][context.path_format][method.lower()]
+            shown = operation["requestBody"]["content"]["application/json"].get("examples", {})
+            for name, example in declared.items():
+                shown[name]["value"] = example["value"]
 
 
-def install_openapi(app: FastAPI, prefix: str, routers: Sequence[APIRouter]) -> None:
-    """Makes `app`, which serves `routers` under `prefix`, keep request-body examples intact."""
+def install_openapi(app: FastAPI) -> None:
+    """Makes `app` keep request-body examples intact in its OpenAPI document."""
 
     def openapi() -> dict[str, Any]:
         # FastAPI.openapi builds the document once and caches it; restoring is idempotent.
         schema = FastAPI.openapi(app)
-        _restore_body_example_values(schema, prefix, routers)
+        _restore_body_example_values(schema, app)
         return schema
 
     app.openapi = openapi  # type: ignore[method-assign]

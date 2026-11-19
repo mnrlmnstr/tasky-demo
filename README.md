@@ -98,7 +98,7 @@ Query parameters for `GET /tasks`:
 | Param       | Example       | Description                                                                                        |
 | ----------- | ------------- | -------------------------------------------------------------------------------------------------- |
 | `status`    | `in_progress` | filter by status                                                                                   |
-| `search`    | `report`      | case-insensitive substring of the title; `%` and `_` match literally                               |
+| `search`    | `звіт`        | case-insensitive substring of the title; `%` and `_` match literally                               |
 | `ordering`  | `-created_at` | `created_at` or `deadline`, prefix `-` for descending; default `-created_at`; no deadline sorts last |
 | `page`      | `1`           | page number, starting at 1 (default 1)                                                             |
 | `page_size` | `20`          | items per page, 1–100 (default 20)                                                                 |

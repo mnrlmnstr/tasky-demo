@@ -61,7 +61,7 @@ class TaskListQuery(BaseModel):
     search: Text | None = Field(
         default=None,
         description="Only tasks whose title contains this text, ignoring case.",
-        examples=["report"],
+        examples=["звіт"],
     )
     ordering: TaskOrdering = Field(
         default=TaskOrdering.CREATED_AT_DESC,

@@ -1,9 +1,17 @@
 """The OpenAPI document and the interactive docs, as the app serves them."""
 
-from typing import Any
+import tomllib
+from pathlib import Path
+from typing import Annotated, Any
 
 import httpx
 import pytest
+from fastapi import APIRouter, Body
+from pydantic import BaseModel
+
+from app.main import create_app
+
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 pytestmark = pytest.mark.anyio
 
@@ -21,6 +29,31 @@ async def test_api_has_title_description_and_version(openapi: dict[str, Any]) ->
     assert info["title"] == "Tasky API"
     assert info["version"]
     assert "/api/v1" in info["description"]
+
+
+async def test_api_version_is_the_package_version(openapi: dict[str, Any]) -> None:
+    pyproject = tomllib.loads((BACKEND_ROOT / "pyproject.toml").read_text())
+
+    assert openapi["info"]["version"] == pyproject["project"]["version"]
+
+
+class _Note(BaseModel):
+    note: str | None
+
+
+async def test_a_router_included_later_keeps_its_null_body_examples() -> None:
+    app = create_app()
+    extra = APIRouter()
+
+    @extra.put("/notes")
+    async def put_note(
+        body: Annotated[_Note, Body(openapi_examples={"clear": {"value": {"note": None}}})],
+    ) -> None: ...
+
+    app.include_router(extra, prefix="/extra")
+
+    shown = app.openapi()["paths"]["/extra/notes"]["put"]["requestBody"]["content"]
+    assert shown["application/json"]["examples"]["clear"]["value"] == {"note": None}
 
 
 async def test_tasks_and_health_tags_are_described(openapi: dict[str, Any]) -> None:
