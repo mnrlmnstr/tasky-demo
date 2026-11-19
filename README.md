@@ -111,6 +111,8 @@ tasky-demo/
 │   ├── src/
 │   ├── Dockerfile
 │   └── package.json
+├── scripts/
+│   └── smoke.sh          # end-to-end check of the Compose setup
 ├── docker-compose.yml
 ├── .env.example
 └── README.md
@@ -118,15 +120,15 @@ tasky-demo/
 
 ## Running the project
 
-> This describes the target setup; it works once [issue #1](https://github.com/mnrlmnstr/tasky-demo/issues/1) is done.
-
 The only requirement is Docker with Docker Compose.
 
 ```bash
 docker compose up
 ```
 
-That one command starts the database, the backend and the frontend. No `.env` file is needed: the compose file has working defaults. On first start the backend applies migrations and loads demo tasks.
+That one command starts the database, the backend and the frontend. No `.env` file is needed: the compose file has working defaults.
+
+> For now the application is a placeholder page that reports whether the API is healthy, and the API has only the health route. Applying migrations and loading demo tasks on start are not implemented yet: they arrive with [issue #3](https://github.com/mnrlmnstr/tasky-demo/issues/3) and [issue #10](https://github.com/mnrlmnstr/tasky-demo/issues/10).
 
 | What        | URL                         |
 | ----------- | --------------------------- |
@@ -138,7 +140,7 @@ The frontend proxies `/api` to the backend, so the browser only talks to `localh
 
 ### Optional
 
-Override defaults (ports, database credentials, demo data) by copying `.env.example` to `.env` and editing it. Set `SEED_DEMO_DATA=false` to start with an empty database.
+Override defaults (ports, database credentials, demo data) by copying `.env.example` to `.env` and editing it. `SEED_DEMO_DATA=false` will start the application with an empty database once demo data exists (issue #10); until then the variable is passed to the backend but has no effect.
 
 Live-sync source changes into the running containers while developing:
 
@@ -152,6 +154,14 @@ Run tests:
 docker compose exec backend pytest
 docker compose exec frontend npm test
 ```
+
+Check the whole stack end to end (needs `curl` on the host):
+
+```bash
+scripts/smoke.sh
+```
+
+It builds and starts the stack under its own Compose project, checks the page, the API through the frontend proxy, Swagger UI and the database, then removes everything it started. It does not touch a stack you already have running, but it needs free ports: if 8080 or 8000 is taken, run `FRONTEND_PORT=18080 BACKEND_PORT=18000 scripts/smoke.sh`.
 
 Reset everything, including the database:
 
