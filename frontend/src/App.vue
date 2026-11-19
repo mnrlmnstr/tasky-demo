@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 
 import SettingsDialog from './components/settings/SettingsDialog.vue'
 import TaskList from './components/tasks/TaskList.vue'
+import TaskToolbar from './components/tasks/TaskToolbar.vue'
 import Button from './components/ui/Button.vue'
 import IconButton from './components/ui/IconButton.vue'
 import { useTasksStore } from './stores/tasks'
@@ -29,7 +30,7 @@ useTasksStore().start()
       </Button>
     </header>
     <main class="px-5 py-5">
-      <!-- The toolbar (search, status, sort) goes here, above the list. -->
+      <TaskToolbar class="mb-4" />
       <TaskList />
     </main>
   </div>
