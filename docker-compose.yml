@@ -2,6 +2,14 @@
 # Every variable has a working default; a .env file is optional (see .env.example).
 name: tasky
 
+# Shared by every service's healthcheck; each service adds only its own `test`.
+x-healthcheck-timing: &healthcheck-timing
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 30s
+  start_interval: 1s
+
 services:
   db:
     image: postgres:17
@@ -13,12 +21,10 @@ services:
       - db-data:/var/lib/postgresql/data
     # No `ports`: the database is reachable only from the other services.
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-      start_interval: 1s
+      <<: *healthcheck-timing
+      # Over TCP, not the unix socket: the temporary server that postgres runs while it
+      # initialises a new volume listens only on the socket and must not count as healthy.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
 
   backend:
     build:
@@ -32,16 +38,12 @@ services:
       db:
         condition: service_healthy
     healthcheck:
+      <<: *healthcheck-timing
       test:
         - CMD
         - python
         - -c
         - "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health', timeout=3)"
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-      start_interval: 1s
     develop:
       watch:
         - action: sync
@@ -58,24 +60,19 @@ services:
   frontend:
     build:
       context: ./frontend
-    environment:
-      API_PROXY_TARGET: http://backend:8000
+    # The `/api` proxy target defaults to http://backend:8000 in frontend/vite.config.ts.
     ports:
       - "${FRONTEND_PORT:-8080}:5173"
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
+      <<: *healthcheck-timing
       test:
         - CMD
         - node
         - -e
         - "fetch('http://localhost:5173/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-      start_interval: 1s
     develop:
       watch:
         - action: sync

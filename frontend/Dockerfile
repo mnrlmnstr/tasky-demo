@@ -14,4 +14,6 @@ COPY --chown=node:node . .
 
 EXPOSE 5173
 
-CMD ["npm", "run", "dev"]
+# Vite is started directly, not through `npm run dev`: as PID 1 it receives SIGTERM itself,
+# so `docker compose down` stops the container at once. Host and port come from vite.config.ts.
+CMD ["node_modules/.bin/vite"]

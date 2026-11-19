@@ -4,6 +4,6 @@ coverage/
 .env
 .env.*
 .git
-.DS_Store
+**/.DS_Store
 Dockerfile
 .dockerignore

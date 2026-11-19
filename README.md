@@ -134,7 +134,9 @@ That one command starts the database, the backend and the frontend. No `.env` fi
 | ----------- | --------------------------- |
 | Application | http://localhost:8080       |
 | Swagger UI  | http://localhost:8000/docs  |
-| API         | http://localhost:8000/api/v1 |
+| API health  | http://localhost:8000/api/v1/health |
+
+Every API route lives under the base path `/api/v1`. The base path itself answers 404, and the health route is the only one that exists so far.
 
 The frontend proxies `/api` to the backend, so the browser only talks to `localhost:8080`. PostgreSQL is not published to the host.
 

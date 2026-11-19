@@ -21,6 +21,22 @@ FRONTEND_URL="http://localhost:${FRONTEND_PORT}"
 BACKEND_URL="http://localhost:${BACKEND_PORT}"
 EXPECTED_HEALTH='{"status":"ok"}'
 
+# The teardown removes the project's volumes. Under the project name of the real stack
+# that would delete the developer's database, so that name is refused before anything starts.
+REAL_PROJECT="$(sed -n 's/^name:[[:space:]]*\([^[:space:]#]*\).*/\1/p' docker-compose.yml | tr -d "\"'")"
+[ -n "$REAL_PROJECT" ] || {
+  echo "SMOKE FAILED: cannot read the project name (top-level 'name:') from docker-compose.yml" >&2
+  exit 1
+}
+for reserved in "$REAL_PROJECT" "${COMPOSE_PROJECT_NAME:-}"; do
+  if [ -n "$reserved" ] && [ "$PROJECT" = "$reserved" ]; then
+    echo "SMOKE FAILED: SMOKE_PROJECT_NAME='${PROJECT}' is the project name of the real stack;" \
+      "the smoke test removes its project's volumes and would delete your database." \
+      "Use another name (default: tasky-smoke). Nothing was started or removed." >&2
+    exit 1
+  fi
+done
+
 compose() {
   docker compose -p "$PROJECT" "$@"
 }
@@ -65,12 +81,15 @@ status="$(http_status "${BACKEND_URL}/docs")"
   || fail "Swagger UI ${BACKEND_URL}/docs answered ${status}, expected 200"
 
 echo "--- database is healthy and not published to the host"
-db_container="$(compose ps -q db)"
+db_container="$(compose ps -q db)" \
+  || fail "could not look up the container of the db service"
 [ -n "$db_container" ] || fail "the db service has no container"
-db_health="$(docker inspect --format '{{.State.Health.Status}}' "$db_container")"
+db_health="$(docker inspect --format '{{.State.Health.Status}}' "$db_container")" \
+  || fail "could not read the health status of the db container"
 [ "$db_health" = "healthy" ] \
   || fail "the db service is '${db_health}', expected 'healthy'"
-db_ports="$(docker port "$db_container")"
+db_ports="$(docker port "$db_container")" \
+  || fail "could not read the published ports of the db container"
 [ -z "$db_ports" ] \
   || fail "the db service is published to the host (${db_ports}); it must stay internal"
 
