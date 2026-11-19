@@ -70,10 +70,10 @@ Query parameters for `GET /tasks`:
 | Param       | Example           | Description                                                        |
 | ----------- | ----------------- | ------------------------------------------------------------------ |
 | `status`    | `in_progress`     | filter by status                                                   |
-| `search`    | `report`          | case-insensitive match on title                                    |
-| `ordering`  | `-created_at`     | `created_at`, `deadline`; prefix with `-` for descending           |
-| `page`      | `1`               | page number, starting at 1                                         |
-| `page_size` | `20`              | items per page (max 100)                                           |
+| `search`    | `report`          | case-insensitive substring of title; `%` and `_` match literally   |
+| `ordering`  | `-created_at`     | `created_at`, `deadline`; prefix `-` for descending; default `-created_at`; no deadline sorts last |
+| `page`      | `1`               | page number, starting at 1 (default 1)                             |
+| `page_size` | `20`              | items per page, 1–100 (default 20)                                 |
 
 List response shape:
 

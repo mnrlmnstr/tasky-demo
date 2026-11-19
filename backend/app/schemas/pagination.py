@@ -1,7 +1,7 @@
-from pydantic import BaseModel  # pragma: no cover - module unused until the task list endpoint
+from pydantic import BaseModel
 
 
-class Page[T](BaseModel):  # pragma: no cover - nothing serves it yet; the task list endpoint will
+class Page[T](BaseModel):
     """One page of a list: its items plus where it sits in the whole result."""
 
     items: list[T]
