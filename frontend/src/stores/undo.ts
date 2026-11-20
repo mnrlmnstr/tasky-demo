@@ -6,7 +6,7 @@ import { failureKind, type ApiErrorKind } from '../api/http'
 export const UNDO_WINDOW_MS = 6000
 
 /** What was done, as the last part of an `undo.labels.*` message key: the toast translates it when it is shown. */
-export type UndoLabel = 'created' | 'updated' | 'statusChanged'
+export type UndoLabel = 'created' | 'updated' | 'statusChanged' | 'priorityChanged'
 
 export interface UndoOffer {
   label: UndoLabel

@@ -3,7 +3,7 @@ import { tasksChanged } from './taskChanges'
 import { useUndoStore, type UndoLabel } from './undo'
 
 /*
- * One call after a successful create, edit or status change offers its undo in the toast.
+ * One call after a successful create, edit, status or priority change offers its undo in the toast.
  * Delete is not undoable: it is guarded by a confirmation instead.
  */
 
@@ -48,4 +48,9 @@ export function offerUndoOfEdit(before: TaskRead, after: TaskRead): void {
 /** After `updateTask` answered a status change: `before` is the task as it was, `after` is the answer. */
 export function offerUndoOfStatusChange(before: TaskRead, after: TaskRead): void {
   offerUndoOfUpdate('statusChanged', before, after)
+}
+
+/** After `updateTask` answered a priority change: `before` is the task as it was, `after` is the answer. */
+export function offerUndoOfPriorityChange(before: TaskRead, after: TaskRead): void {
+  offerUndoOfUpdate('priorityChanged', before, after)
 }

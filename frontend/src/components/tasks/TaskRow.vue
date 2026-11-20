@@ -6,12 +6,12 @@ import { useI18n } from 'vue-i18n'
 import type { TaskRead } from '../../api/generated/client'
 import { useSettingsStore } from '../../stores/settings'
 import { useTaskFormStore } from '../../stores/taskForm'
-import Badge from '../ui/Badge.vue'
 import { FOCUS_RING_CLASS } from '../ui/control'
 import IconButton from '../ui/IconButton.vue'
-import { useFocusOnLeave, useStatusChange, useTaskDelete } from './taskActions'
+import PriorityMenu from './PriorityMenu.vue'
+import { useFocusOnLeave, usePriorityChange, useStatusChange, useTaskDelete } from './taskActions'
 import TaskDeleteConfirm from './TaskDeleteConfirm.vue'
-import { PRIORITY_TONES, useTaskDates } from './taskDisplay'
+import { useTaskDates } from './taskDisplay'
 import TaskStatusMenu from './TaskStatusMenu.vue'
 
 const { task } = defineProps<{ task: TaskRead }>()
@@ -20,13 +20,14 @@ const { t } = useI18n()
 const settings = useSettingsStore()
 
 const { pickedStatus, isChangingStatus, status, changeStatus } = useStatusChange(() => task)
+const { pickedPriority, isChangingPriority, priority, changePriority } = usePriorityChange(() => task)
 const { isConfirmingDelete, isDeleting, askToDelete, deleteConfirmed } = useTaskDelete(
   () => task,
-  () => isChangingStatus.value,
+  () => isChangingStatus.value || isChangingPriority.value,
 )
 
 // One request per row at a time: the controls stay focusable meanwhile, but do nothing.
-const isBusy = computed(() => isChangingStatus.value || isDeleting.value)
+const isBusy = computed(() => isChangingStatus.value || isChangingPriority.value || isDeleting.value)
 const isDone = computed(() => status.value === 'done')
 
 const { deadline, isOverdue, createdAgo, createdAt } = useTaskDates(() => task, status)
@@ -35,7 +36,7 @@ const description = computed(() =>
   settings.showDescriptions && task.description?.trim() ? task.description : null,
 )
 
-useFocusOnLeave(useTemplateRef<HTMLElement>('row'), () => isDeleting.value || pickedStatus.value !== null)
+useFocusOnLeave(useTemplateRef<HTMLElement>('row'), () => isDeleting.value || pickedStatus.value !== null || pickedPriority.value !== null)
 </script>
 
 <template>
@@ -63,9 +64,13 @@ useFocusOnLeave(useTemplateRef<HTMLElement>('row'), () => isDeleting.value || pi
             {{ task.title }}
           </button>
         </p>
-        <Badge :tone="PRIORITY_TONES[task.priority]" class="mt-0.5 shrink-0">
-          {{ t(`task.priority.${task.priority}`) }}
-        </Badge>
+        <PriorityMenu
+          :priority="priority"
+          :busy="isChangingPriority"
+          :disabled="isBusy"
+          class="mt-0.5"
+          @select="changePriority"
+        />
         <IconButton
           :label="t('actions.delete')"
           :aria-disabled="isBusy ? 'true' : undefined"

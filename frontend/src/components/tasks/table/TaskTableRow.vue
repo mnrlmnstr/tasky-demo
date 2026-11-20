@@ -6,13 +6,13 @@ import { useI18n } from 'vue-i18n'
 import type { TaskRead } from '../../../api/generated/client'
 import { useSettingsStore } from '../../../stores/settings'
 import { useTaskFormStore } from '../../../stores/taskForm'
-import Badge from '../../ui/Badge.vue'
 import { FOCUS_RING_CLASS } from '../../ui/control'
 import DropdownMenu from '../../ui/DropdownMenu.vue'
 import IconButton from '../../ui/IconButton.vue'
-import { useFocusOnLeave, useStatusChange, useTaskDelete } from '../taskActions'
+import PriorityMenu from '../PriorityMenu.vue'
+import { useFocusOnLeave, usePriorityChange, useStatusChange, useTaskDelete } from '../taskActions'
 import TaskDeleteConfirm from '../TaskDeleteConfirm.vue'
-import { PRIORITY_TONES, useTaskDates } from '../taskDisplay'
+import { useTaskDates } from '../taskDisplay'
 import TaskStatusMenu from '../TaskStatusMenu.vue'
 
 const { task } = defineProps<{ task: TaskRead }>()
@@ -21,11 +21,12 @@ const { t } = useI18n()
 const settings = useSettingsStore()
 
 const { pickedStatus, isChangingStatus, status, changeStatus } = useStatusChange(() => task)
+const { pickedPriority, isChangingPriority, priority, changePriority } = usePriorityChange(() => task)
 const { isConfirmingDelete, isDeleting, askToDelete, deleteConfirmed } = useTaskDelete(
   () => task,
-  () => isChangingStatus.value,
+  () => isChangingStatus.value || isChangingPriority.value,
 )
-const isBusy = computed(() => isChangingStatus.value || isDeleting.value)
+const isBusy = computed(() => isChangingStatus.value || isChangingPriority.value || isDeleting.value)
 
 const { deadline, isOverdue, createdAgo, createdAt } = useTaskDates(() => task, status)
 
@@ -33,7 +34,7 @@ const cellClass = computed(() => (settings.density === 'compact' ? 'py-1' : 'py-
 
 const actions = computed(() => [{ value: 'delete' as const, label: t('actions.delete'), icon: Trash2 }])
 
-useFocusOnLeave(useTemplateRef<HTMLElement>('row'), () => isDeleting.value || pickedStatus.value !== null)
+useFocusOnLeave(useTemplateRef<HTMLElement>('row'), () => isDeleting.value || pickedStatus.value !== null || pickedPriority.value !== null)
 </script>
 
 <template>
@@ -62,7 +63,7 @@ useFocusOnLeave(useTemplateRef<HTMLElement>('row'), () => isDeleting.value || pi
       </p>
     </td>
     <td class="pr-4" :class="cellClass">
-      <Badge :tone="PRIORITY_TONES[task.priority]">{{ t(`task.priority.${task.priority}`) }}</Badge>
+      <PriorityMenu :priority="priority" :busy="isChangingPriority" :disabled="isBusy" @select="changePriority" />
     </td>
     <td class="pr-4 whitespace-nowrap text-text-muted" :class="cellClass">
       <span
