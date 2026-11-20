@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ArrowUpDown } from 'lucide-vue-next'
-import { computed } from 'vue'
+import { ArrowUpDown, Columns3, List, Table } from 'lucide-vue-next'
+import { computed, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { TaskOrdering } from '../../api/generated/client'
-import { STATUS_FILTERS, useListViewStore } from '../../stores/listView'
+import { STATUS_FILTERS, TASK_VIEWS, useListViewStore, type TaskView } from '../../stores/listView'
 import Button from '../ui/Button.vue'
 import DropdownMenu from '../ui/DropdownMenu.vue'
 import SegmentedControl from '../ui/SegmentedControl.vue'
@@ -30,6 +30,12 @@ const statusOptions = computed(() =>
   })),
 )
 
+const VIEW_ICONS: Record<TaskView, Component> = { list: List, board: Columns3, table: Table }
+
+const viewOptions = computed(() =>
+  TASK_VIEWS.map((value) => ({ value, label: t(`views.${value}`), icon: VIEW_ICONS[value] })),
+)
+
 const sortLabel = computed(() => t(SORT_MESSAGES[view.ordering]))
 
 const sortItems = computed(() =>
@@ -45,14 +51,16 @@ const sortItems = computed(() =>
   -->
   <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 md:grid-cols-[auto_minmax(min-content,1fr)_minmax(0,auto)]">
     <!-- Below the wide layout the four statuses share the full width; on a phone with tighter segments, so no label breaks in two. -->
+    <!-- The board's columns are the statuses, so it has no status filter. -->
     <SegmentedControl
+      v-if="view.view !== 'board'"
       v-model="view.status"
       :options="statusOptions"
       :label="t('toolbar.statusLabel')"
       class="col-span-2 col-start-1 row-start-1 justify-self-start max-md:w-full md:col-span-1 [&>button]:flex-auto [&>button]:whitespace-nowrap max-sm:[&>button]:px-1.5"
     />
 
-    <!-- The deadline filter rides with the sorting, so it adds no row. -->
+    <!-- The deadline filter and the view switch ride with the sorting, so they add no row. -->
     <div
       class="col-start-1 row-start-2 flex max-w-full min-w-0 gap-2 justify-self-start md:col-start-3 md:row-start-1 md:justify-self-end"
     >
@@ -67,6 +75,8 @@ const sortItems = computed(() =>
           </Button>
         </template>
       </DropdownMenu>
+
+      <SegmentedControl v-model="view.view" :options="viewOptions" :label="t('views.label')" class="shrink-0" />
     </div>
 
     <Button

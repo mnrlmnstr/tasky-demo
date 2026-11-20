@@ -1,4 +1,5 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { List } from 'lucide-vue-next'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import SegmentedControl from './SegmentedControl.vue'
@@ -131,5 +132,17 @@ describe('SegmentedControl', () => {
 
     expect(segments.map((segment) => segment.element.disabled)).toEqual([true, true, true])
     expect(control.emitted('update:modelValue')).toBeUndefined()
+  })
+
+  it('shows only the icon of an option that has one, named by its label', () => {
+    const control = mountControl({ options: [{ value: 'all', label: 'All', icon: List }, OPTIONS[1]] })
+    const [iconOnly, withText] = control.findAll('button')
+
+    expect(iconOnly.text()).toBe('')
+    expect(iconOnly.attributes('aria-label')).toBe('All')
+    expect(iconOnly.attributes('title')).toBe('All')
+    expect(iconOnly.find('svg.lucide-list[aria-hidden="true"]').exists()).toBe(true)
+    expect(withText.text()).toBe('Open')
+    expect(withText.attributes('aria-label')).toBeUndefined()
   })
 })
