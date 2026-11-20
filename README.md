@@ -1,92 +1,42 @@
-# Tasky — Task Manager
+# Tasky
 
-A full-stack task manager built as a test assignment: a Python REST API backed by PostgreSQL, with a Vue 3 single-page frontend, all running through Docker Compose.
+A task manager: a FastAPI + PostgreSQL REST API and a Vue 3 single-page app, run with Docker Compose.
+
+## Quick start
+
+You need Docker with the Compose plugin (`docker compose version`). Then:
+
+```bash
+git clone https://github.com/mnrlmnstr/tasky-demo.git
+cd tasky-demo
+docker compose up --build
+```
+
+Open http://localhost:8080. The API docs are at http://localhost:8000/docs (Swagger UI) and http://localhost:8000/redoc (ReDoc).
+
+No `.env` file or other setup is needed. On first start the database is migrated and filled with 30 demo tasks.
+
+Port 8080 or 8000 taken? Pick others: `FRONTEND_PORT=18080 BACKEND_PORT=18000 docker compose up --build`.
+
+Stop with `Ctrl+C` (or `docker compose down`). Remove everything, including the database: `docker compose down -v`.
 
 ![Task list](docs/screenshots/list.png)
 
 ## Contents
 
-- [Tech stack](#tech-stack)
-- [Quick start](#quick-start)
-- [Frontend](#frontend)
-- [API](#api)
-- [Tests](#tests)
-- [Migrations](#migrations)
+- [Features](#features)
+- [Configuration](#configuration)
 - [Development](#development)
+- [API](#api)
 - [Project structure](#project-structure)
 
-## Tech stack
-
-| Layer    | Choice                                                                                 |
-| -------- | -------------------------------------------------------------------------------------- |
-| Backend  | Python 3.13, FastAPI, SQLAlchemy 2 (async), Alembic, Pydantic, uv                      |
-| Database | PostgreSQL 17                                                                          |
-| Frontend | Vue 3, Vite, TypeScript, Pinia, vue-i18n, Tailwind CSS 4, Reka UI, Orval, npm          |
-| Tests    | pytest, pytest-cov, httpx, Vitest, Vue Test Utils, happy-dom                           |
-| Infra    | Docker, Docker Compose                                                                 |
-
-## Quick start
-
-The only requirement is Docker with Docker Compose. From a clean clone:
-
-```bash
-docker compose up
-```
-
-That one command starts the database, the backend and the frontend. No `.env` file is needed: the compose file has working defaults. On start the backend applies the database migrations and loads the demo data.
-
-| What        | URL                                  |
-| ----------- | ------------------------------------ |
-| Application | http://localhost:8080                |
-| Swagger UI  | http://localhost:8000/docs           |
-| ReDoc       | http://localhost:8000/redoc          |
-| API health  | http://localhost:8000/api/v1/health  |
-
-The frontend proxies `/api` to the backend, so the browser only talks to `localhost:8080`. PostgreSQL is not published to the host.
-
-Stop and delete everything, including the database:
-
-```bash
-docker compose down -v
-```
-
-### Demo data
-
-On first start the backend loads 30 demo tasks (titles and descriptions in Ukrainian) with mixed statuses and priorities, past, future and missing deadlines, and creation dates spread over the last 30 days. They are loaded only into a tasks table with no rows at all (soft-deleted tasks count), so restarts add nothing and your changes are kept.
-
-- Start with an empty database: set `SEED_DEMO_DATA=false` (in `.env` or the shell) before the first start.
-- Replace all tasks with a fresh demo set at any time:
-
-  ```bash
-  docker compose exec backend python -m app.seed --reset
-  ```
-
-### Environment variables
-
-All are optional. To override them, copy `.env.example` to `.env` and edit the copy.
-
-| Variable            | Default  | Description                                                     |
-| ------------------- | -------- | --------------------------------------------------------------- |
-| `FRONTEND_PORT`     | `8080`   | host port of the application                                    |
-| `BACKEND_PORT`      | `8000`   | host port of the API and its docs                               |
-| `POSTGRES_USER`     | `tasky`  | database user                                                   |
-| `POSTGRES_PASSWORD` | `tasky`  | database password                                               |
-| `POSTGRES_DB`       | `tasky`  | database name                                                   |
-| `SEED_DEMO_DATA`    | `true`   | load the demo tasks on start; `false` starts with an empty database |
-
-`POSTGRES_USER` and `POSTGRES_PASSWORD` are inserted as they are into the backend's database URL, so they must be URL-safe: no `@`, `/` or `:` (letters, digits, `-` and `_` are fine). The credentials are applied when the database volume is first created; to change them later, reset the volume with `docker compose down -v`.
-
-## Frontend
-
-A single-page Vue 3 app served by the Vite dev server at http://localhost:8080. The UI is in Ukrainian or English.
+## Features
 
 | Board | Edit form |
 | ----- | --------- |
 | ![Board view](docs/screenshots/board.png) | ![Task form](docs/screenshots/task-form.png) |
 
 ![Table view, dark theme, Ukrainian](docs/screenshots/table-dark-uk.png)
-
-### What it can do
 
 - **Views** (switch in the toolbar):
   - list: one row per task with status, title, priority, deadline and creation date, paginated;
@@ -103,7 +53,7 @@ A single-page Vue 3 app served by the Vite dev server at http://localhost:8080. 
   - change the status from the status menu on a row or a card, or by dragging on the board;
   - delete from a row or a card, behind a confirmation (there is no restore);
   - create, edit, status changes and moves show a toast with **Undo** for 6 seconds (the timer pauses while the toast is hovered or focused). Delete has no undo.
-- **Settings** (gear button): theme (light, dark, system), tasks per page (10, 20, 50), language (Українська, English; the first visit follows the browser), density (comfortable, compact), show the first line of descriptions in rows and cards.
+- **Settings** (gear button): theme (light, dark, system), tasks per page (10, 20, 50, All: every matching task on one page, without pagination), language (Українська, English; the first visit follows the browser), density (comfortable, compact), show the first line of descriptions in rows and cards.
 - **States:** loading and updating indicators, an empty list, "no tasks match your filters", and error messages by kind (network, server, task not found) with a **Try again** button.
 - Dates, relative times ("3 days ago") and plurals follow the chosen language; overdue deadlines are marked.
 
@@ -117,70 +67,90 @@ A single-page Vue 3 app served by the Vite dev server at http://localhost:8080. 
 
 The address wins over local storage. Invalid values in either are replaced with defaults one field at a time. Filter, sort, page and view changes add a browser history step, so Back returns to the previous view; typing in the search replaces the current step instead. If local storage is blocked, the app still works and keeps the view in the address only.
 
-### How `/api` is proxied
+### Demo data
 
-The frontend calls the API with relative URLs (`/api/v1/...`), and the Vite dev server forwards every `/api` request to `API_PROXY_TARGET` (see `frontend/vite.config.ts`). The default, `http://backend:8000`, is the backend service in Compose. The browser only ever talks to the frontend's origin, so there is no CORS setup and no API address baked into the build.
+On first start the backend loads 30 demo tasks (titles and descriptions in Ukrainian) with mixed statuses and priorities, past, future and missing deadlines, and creation dates spread over the last 30 days. They are loaded only into a tasks table with no rows at all (soft-deleted tasks count), so restarts add nothing and your changes are kept.
 
-To run the dev server on the host against a backend published on port 8000:
+- Start with an empty database: set `SEED_DEMO_DATA=false` before the first start.
+- Replace all tasks with a fresh demo set at any time: `docker compose exec backend python -m app.seed --reset`.
+
+## Configuration
+
+Every variable is optional and has a working default in `docker-compose.yml`. Set them in the shell or copy `.env.example` to `.env` and edit the copy.
+
+| Variable            | Default  | Description                                                         |
+| ------------------- | -------- | ------------------------------------------------------------------- |
+| `FRONTEND_PORT`     | `8080`   | host port of the application                                        |
+| `BACKEND_PORT`      | `8000`   | host port of the API and its docs                                   |
+| `POSTGRES_USER`     | `tasky`  | database user                                                       |
+| `POSTGRES_PASSWORD` | `tasky`  | database password                                                   |
+| `POSTGRES_DB`       | `tasky`  | database name                                                       |
+| `SEED_DEMO_DATA`    | `true`   | load the demo tasks on start; `false` starts with an empty database |
+
+`POSTGRES_USER` and `POSTGRES_PASSWORD` are inserted as they are into the backend's database URL, so they must be URL-safe: no `@`, `/` or `:` (letters, digits, `-` and `_` are fine). The credentials are applied when the database volume is first created; to change them later, reset the volume with `docker compose down -v`.
+
+PostgreSQL is not published to the host. The frontend calls the API with relative URLs (`/api/v1/...`) and the Vite dev server forwards every `/api` request to `API_PROXY_TARGET` (default `http://backend:8000`, see `frontend/vite.config.ts`), so the browser only talks to the frontend's origin: no CORS setup and no API address baked into the build.
+
+## Development
+
+| Layer    | Stack                                                                         |
+| -------- | ----------------------------------------------------------------------------- |
+| Backend  | Python 3.13, FastAPI, SQLAlchemy 2 (async), Alembic, Pydantic, uv             |
+| Database | PostgreSQL 17                                                                 |
+| Frontend | Vue 3, Vite, TypeScript, Pinia, vue-i18n, Tailwind CSS 4, Reka UI, Orval, npm |
+| Tests    | pytest, pytest-cov, httpx, Vitest, Vue Test Utils, happy-dom                  |
+
+### Watch mode
 
 ```bash
-cd frontend
-npm ci
+docker compose up --build --watch
+```
+
+Backend code and tests are synced into the container and the server reloads; changes to migrations restart the backend (which applies them); changes to dependencies rebuild the image. The frontend works the same way with Vite's hot reload.
+
+To run the frontend dev server on the host instead, against a backend published on port 8000 (it listens on http://localhost:5173):
+
+```bash
+cd frontend && npm ci
 API_PROXY_TARGET=http://localhost:8000 npx vite
 ```
 
-It listens on http://localhost:5173.
+### Tests, lint and type checks
+
+With the stack running:
+
+```bash
+docker compose exec backend pytest                      # tests with coverage
+docker compose exec backend ruff check .                # lint
+docker compose exec backend ruff format --check .       # formatting
+docker compose exec frontend npm run check              # typecheck, lint, tests with coverage
+```
+
+- Backend: the suite runs against a real PostgreSQL test database (`<POSTGRES_DB>_test` in the same `db` container, created on first run); each test is isolated by a rolled-back transaction. Every run fails if coverage of `app/` lines and branches drops below 100%. For a subset, turn coverage off: `docker compose exec backend pytest tests/integration/test_tasks_list.py --no-cov`.
+- Frontend (also from `frontend/` on the host after `npm ci`): `npm run check` runs `npm run typecheck` (vue-tsc), `npm run lint` (ESLint; `npm run lint:fix` applies fixes) and `npm run test:coverage` (Vitest, 100% threshold) in that order, stopping at the first failure; `npm test` runs the tests alone. Tests sit next to the code (`*.test.ts`); app-level tests run `App.vue` against an in-memory fake of the API (`src/test/`). Coverage counts `src/**/*.{ts,vue}` except the generated client. ESLint runs the recommended rules of `eslint-plugin-vue` and the type-aware recommended rules of `typescript-eslint`; there is no formatter, so the layout-only rules are off.
+- End to end (needs `curl` on the host): `scripts/smoke.sh` builds and starts the stack under its own Compose project, checks the page, the API through the frontend proxy, Swagger UI and the database, then removes everything it started. It needs free ports: `FRONTEND_PORT=18080 BACKEND_PORT=18000 scripts/smoke.sh` if 8080 or 8000 is taken.
+
+### Migrations
+
+The backend runs `alembic upgrade head` on every start, so there is nothing to apply by hand. To add a migration, change the models in `backend/app/models/`, then generate it in the running container and copy it back to the host:
+
+```bash
+docker compose exec backend alembic revision --autogenerate --rev-id 0004 -m "describe the change"
+docker compose cp backend:/app/alembic/versions/0004_describe_the_change.py backend/alembic/versions/
+```
+
+Review the file, then `docker compose restart backend` to apply it. `docker compose exec backend alembic check` reports whether the models and the migrations agree.
 
 ### API client
 
-`frontend/src/api/generated/client.ts` is generated by [Orval](https://orval.dev) from the backend's OpenAPI spec and wraps `fetch` with `src/api/http.ts`, which throws typed errors. Regenerate it after an API change (on the host; needs `uv sync` in `backend/` and `npm ci` in `frontend/`):
+`frontend/src/api/generated/client.ts` is generated by [Orval](https://orval.dev) from the backend's OpenAPI spec and wraps `fetch` with `src/api/http.ts`, which throws typed errors. Regenerate it after any route or schema change (on the host; needs `uv sync` in `backend/` and `npm ci` in `frontend/`):
 
 ```bash
 cd backend && .venv/bin/python -m scripts.export_openapi   # writes frontend/openapi.json
 cd ../frontend && npm run api:generate                     # rewrites frontend/src/api/generated
 ```
 
-Both outputs are committed. `frontend/src/api/generated` is never edited by hand, and nothing checks that it matches the API: run the two commands whenever a route or schema changes.
-
-### Tests, lint and type checks
-
-From `frontend/` on the host (after `npm ci`), or in the running container:
-
-```bash
-npm run check                # all of the below, in this order, stopping at the first failure
-npm run typecheck            # vue-tsc
-npm run lint                 # ESLint
-npm run lint:fix             # ESLint, applying the fixes it can make itself
-npm test                     # Vitest, happy-dom
-npm run test:coverage        # Vitest with a coverage summary and the 100% threshold
-
-docker compose exec frontend npm test
-docker compose exec frontend npm run check
-```
-
-Tests sit next to the code they cover (`*.test.ts`); app-level tests run `App.vue` against an in-memory fake of the API (`src/test/`). Coverage counts `src/**/*.{ts,vue}` except the generated client, and `npm run test:coverage` (so also `npm run check`) fails if any statement, branch, function or line of it goes untested.
-
-ESLint (`eslint.config.js`) runs the recommended rules of `eslint-plugin-vue` and the type-aware recommended rules of `typescript-eslint`, and skips `src/api/generated`. There is no formatter, so the rules that only police layout are off.
-
-### Structure
-
-```
-frontend/src/
-├── api/              # generated Orval client, fetch wrapper and errors, query string, latest-request guard
-├── components/
-│   ├── ui/           # buttons, dialogs, menus, switch, segmented control (on Reka UI)
-│   ├── tasks/        # toolbar, search, filters, list rows, form, delete confirmation, pagination
-│   │   ├── board/    # board, columns, cards
-│   │   └── table/    # table and its rows
-│   ├── settings/     # settings dialog
-│   └── undo/         # undo toast
-├── stores/           # Pinia: tasks, board, list view (URL + storage), settings, form, undo
-├── i18n/             # uk and en messages, date, number and error formatting
-├── styles/           # Tailwind entry and theme tokens (light and dark)
-├── test/             # shared test helpers and the fake API
-├── App.vue
-└── main.ts
-```
+Both outputs are committed; `frontend/src/api/generated` is never edited by hand, and nothing checks that it matches the API.
 
 ## API
 
@@ -243,61 +213,6 @@ Errors:
 | `422`  | invalid body, query parameter or id             | `{"detail": [{"loc": [...], "msg": "...", "type": "..."}]}` |
 | `500`  | unexpected server error (details go to the log) | `{"detail": "Internal server error"}`                        |
 
-## Tests
-
-With the stack running (`docker compose up`):
-
-```bash
-docker compose exec backend pytest
-docker compose exec frontend npm test
-```
-
-The backend suite runs against a real PostgreSQL test database (`<POSTGRES_DB>_test` in the same `db` container, created on first run); each test is isolated by a rolled-back transaction. Coverage runs on every `pytest` and the run fails if coverage of `app/` lines and branches drops below 100%. To run a subset, turn coverage off:
-
-```bash
-docker compose exec backend pytest tests/integration/test_tasks_list.py --no-cov
-```
-
-Lint and format checks for the backend:
-
-```bash
-docker compose exec backend ruff check .
-docker compose exec backend ruff format --check .
-```
-
-Frontend lint, type checks and coverage in one command (`docker compose exec frontend npm run check`): see [Frontend tests, lint and type checks](#tests-lint-and-type-checks).
-
-End-to-end check of the whole Compose setup (needs `curl` on the host):
-
-```bash
-scripts/smoke.sh
-```
-
-It builds and starts the stack under its own Compose project, checks the page, the API through the frontend proxy, Swagger UI and the database, then removes everything it started. It does not touch a stack you already have running, but it needs free ports: if 8080 or 8000 is taken, run `FRONTEND_PORT=18080 BACKEND_PORT=18000 scripts/smoke.sh`.
-
-## Migrations
-
-The backend runs `alembic upgrade head` every time it starts, so there is nothing to apply by hand.
-
-To add a migration, change the models in `backend/app/models/`, then generate it inside the running container and copy it back to the host (the container's files are not shared with the host):
-
-```bash
-docker compose exec backend alembic revision --autogenerate --rev-id 0003 -m "describe the change"
-docker compose cp backend:/app/alembic/versions/0003_describe_the_change.py backend/alembic/versions/
-```
-
-Review the generated file, then restart the backend (`docker compose restart backend`) to apply it. `docker compose exec backend alembic check` reports whether the models and the migrations agree.
-
-## Development
-
-Live-sync source changes into the running containers:
-
-```bash
-docker compose up --watch
-```
-
-Backend code and tests are synced and the server reloads; changes to migrations restart the backend (which applies them); changes to dependencies rebuild the image. The frontend works the same way with Vite's hot reload.
-
 ## Project structure
 
 ```
@@ -316,18 +231,25 @@ tasky-demo/
 │   ├── Dockerfile
 │   ├── entrypoint.sh     # migrations, demo data, then the server
 │   └── pyproject.toml
-├── frontend/             # Vue 3 + Vite + TypeScript app (see Frontend → Structure)
+├── frontend/
 │   ├── src/
+│   │   ├── api/          # generated Orval client, fetch wrapper and errors, query string, latest-request guard
+│   │   ├── components/   # ui/ primitives (on Reka UI), tasks/ (toolbar, list, board/, table/, form), settings/, undo/
+│   │   ├── stores/       # Pinia: tasks, board, list view (URL + storage), settings, form, undo
+│   │   ├── i18n/         # uk and en messages, date, number and error formatting
+│   │   ├── styles/       # Tailwind entry and theme tokens (light and dark)
+│   │   ├── test/         # shared test helpers and the fake API
+│   │   ├── App.vue
+│   │   └── main.ts
 │   ├── openapi.json      # API spec exported from the backend, input of the client generator
 │   ├── orval.config.ts
 │   ├── vite.config.ts    # dev server, `/api` proxy, Vitest
 │   └── Dockerfile
 ├── docs/screenshots/     # images used in this README
-├── scripts/
-│   └── smoke.sh          # end-to-end check of the Compose setup
+├── scripts/smoke.sh      # end-to-end check of the Compose setup
 ├── docker-compose.yml
 ├── .env.example
 └── README.md
 ```
 
-Requests flow `api → services → models`: routers validate input with the schemas and call plain service functions, which work on the SQLAlchemy models through an async session.
+Backend requests flow `api → services → models`: routers validate input with the schemas and call plain service functions, which work on the SQLAlchemy models through an async session.
