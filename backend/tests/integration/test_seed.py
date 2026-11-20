@@ -222,12 +222,15 @@ async def test_seeded_shipped_work_was_created_before_the_current_work(
 
 
 @pytest.mark.anyio
-async def test_searching_board_finds_the_five_board_tasks(
+async def test_searching_a_word_stem_finds_every_form_of_it_in_any_case(
     seeded: datetime, client: httpx.AsyncClient
 ) -> None:
-    body = (await client.get(TASKS, params={"search": "board"})).json()
+    body = (await client.get(TASKS, params={"search": "фільтр", "page_size": 100})).json()
 
+    titles = [task["title"] for task in body["items"]]
     assert body["total"] == 5
+    assert any(title.startswith("Фільтри ") for title in titles)
+    assert any(" фільтр " in title for title in titles)
 
 
 @pytest.mark.anyio

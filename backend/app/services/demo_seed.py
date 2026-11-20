@@ -1,10 +1,10 @@
-"""Demo tasks for a fresh install: the story of building Tasky itself.
+"""Demo tasks for a fresh install, in Ukrainian: the story of building Tasky itself.
 
 The shipped work of the backend and frontend milestones is done, the current work is in
 progress and a few plausible next steps are to do. Deadlines are overdue, due within a few
 days, further out or missing; creation dates follow the order the work happened over the last
-three weeks. Five titles share the word "board" so a search finds more than one. All dates are
-relative to the seed time.
+three weeks. Five titles mention filters («фільтр», «фільтри») so a search for «фільтр» finds
+more than one. All dates are relative to the seed time.
 """
 
 import logging
@@ -45,172 +45,173 @@ def _days(days: float) -> timedelta:
 DEMO_TASKS: tuple[DemoTask, ...] = (
     # In progress
     DemoTask(
-        "Refactor: shared task title and deadline pieces",
-        "Pull the title, deadline badge, form submit and task actions out of the list, board "
-        "and table components, so the three views stop drifting apart.",
+        "Рефакторинг: спільні компоненти назви й дедлайну задачі",
+        "Винести назву, бейдж дедлайну, збереження форми й дії із задачею зі списку, дошки "
+        "й таблиці, щоб три вигляди не розходилися.",
         IN_PROGRESS, HIGH, _days(6.6), _days(1.5),
     ),
     DemoTask(
-        "Demo data that tells the story of building Tasky",
-        "Replace the placeholder seed with the project's own work items, so a fresh install "
-        "reads like a real board.",
+        "Демодані, що розповідають історію створення Tasky",
+        "Замінити заглушки в демоданих справжніми задачами проєкту, щоб після чистого "
+        "встановлення дошка виглядала живою.",
         IN_PROGRESS, HIGH, _days(0.2), _days(2),
     ),
     DemoTask(
-        "README: quick start first",
-        "Clone and one command at the top; configuration, development and the API reference "
-        "below it.",
+        "README: спершу швидкий старт",
+        "Угорі клонування й одна команда; конфігурація, розробка й довідник API нижче.",
         IN_PROGRESS, MEDIUM, _days(1.6), _days(-0.3),
     ),
     DemoTask(
-        "Refresh the README screenshots",
+        "Оновити скриншоти в README",
         None,
         IN_PROGRESS, LOW, _days(0.4), None,
     ),
     # To do
     DemoTask(
-        "CI: frontend check and backend tests on every pull request",
-        "GitHub Actions running `npm run check` and the backend suite against PostgreSQL, "
-        "required before merge.",
+        "CI: перевірка фронтенду й тести бекенду на кожен pull request",
+        "GitHub Actions запускає `npm run check` і тести бекенду на PostgreSQL; без зеленого "
+        "прогону злиття заблоковане.",
         TODO, HIGH, _days(8.1), _days(-2),
     ),
     DemoTask(
-        "Request id shared by browser and backend logs",
-        "Send an X-Request-ID from the client and log it on both sides, so one failed save "
-        "can be followed end to end.",
+        "Спільний request id у логах браузера й бекенду",
+        "Клієнт надсилає X-Request-ID, і обидві сторони пишуть його в логи, тож одне невдале "
+        "збереження можна простежити від початку до кінця.",
         TODO, HIGH, _days(2.8), _days(2.5),
     ),
     DemoTask(
-        "Rebalance positions when custom order gaps run out",
-        "Dragging between the same two tasks halves the gap each time; renumber the column "
-        "before floats lose precision.",
+        "Перенумерація позицій, коли у власному порядку закінчуються проміжки",
+        "Кожне перетягування між тими самими двома задачами вдвічі зменшує проміжок; колонку "
+        "треба перенумерувати, поки float не втратив точність.",
         TODO, MEDIUM, _days(5.2), _days(-1),
     ),
     DemoTask(
-        "Audit the test-only dependencies",
-        "Check what the frontend and backend dev dependencies pull in and drop what the "
-        "suites no longer use.",
+        "Переглянути залежності, потрібні лише для тестів",
+        "Перевірити, що тягнуть за собою dev-залежності фронтенду й бекенду, і прибрати те, "
+        "чим тести вже не користуються.",
         TODO, MEDIUM, _days(2.1), _days(8),
     ),
     DemoTask(
-        "End-to-end tests in a real browser",
-        "A few Playwright runs against the Compose stack: create, edit, filter and drag a task.",
+        "e2e-тести у справжньому браузері: форма, фільтри й перетягування",
+        "Кілька прогонів Playwright на стеку Compose: створити, відредагувати, відфільтрувати "
+        "й перетягнути задачу.",
         TODO, MEDIUM, _days(3.9), _days(14),
     ),
     DemoTask(
-        "Shortcut keys for new task, search and undo",
-        "N opens the form, / focuses the search, Ctrl+Z undoes the last change.",
+        "Гарячі клавіші: нова задача, пошук і скасування",
+        "N відкриває форму, / ставить курсор у пошук, Ctrl+Z скасовує останню зміну.",
         TODO, LOW, _days(1.1), None,
     ),
     DemoTask(
-        "Change the status of several tasks at once",
+        "Зміна статусу кількох задач одразу",
         None,
         TODO, LOW, _days(0.7), _days(30),
     ),
     # Done, latest first
     DemoTask(
-        "Fix board placeholders staying after a column loads",
-        "The loading cards sat inside the cards' transition group, and their pulse animation "
-        "kept the leave transition from ever finishing.",
+        "Заглушки на дошці не зникають після завантаження колонки",
+        "Картки-заглушки сиділи всередині transition group карток, і їхня pulse-анімація не "
+        "давала leave-переходу завершитися.",
         DONE, MEDIUM, _days(3.4), None,
     ),
     DemoTask(
-        "Change priority from the list, board and table",
-        "A priority menu on every task, in all three views.",
+        "Зміна пріоритету зі списку, дошки й таблиці",
+        "Меню пріоритету на кожній задачі в усіх трьох виглядах.",
         DONE, LOW, _days(4.6), None,
     ),
     DemoTask(
-        "Custom order: drag cards on the board and rows in the table",
-        "A position per task, a move endpoint that places a task between two others, and "
-        "Move up / Move down for the keyboard.",
+        "Власний порядок: перетягування карток на дошці й рядків у таблиці",
+        "Позиція в кожної задачі, ендпоінт переміщення, що ставить задачу між двома іншими, "
+        "і «Перемістити вище» / «Перемістити нижче» для клавіатури.",
         DONE, HIGH, _days(5.8), _days(-4),
     ),
     DemoTask(
-        "Review fixes: deadline filter, board and accessibility",
-        "Fixes from a review pass over the deadline filter, the board, the form and keyboard "
-        "and screen reader use.",
+        "Правки після рев’ю: фільтр дедлайнів, дошка й доступність",
+        "Виправлення за результатами рев’ю фільтра дедлайнів, дошки, форми, роботи з "
+        "клавіатури та зі скринрідером.",
         DONE, MEDIUM, _days(7.4), _days(-5),
     ),
     DemoTask(
-        "Task views: list, kanban board and table",
-        "Three views of the same filtered tasks, with density and description settings.",
+        "Вигляди задач: список, канбан-дошка й таблиця",
+        "Три вигляди тих самих відфільтрованих задач із налаштуваннями щільності й описів.",
         DONE, HIGH, _days(8.7), _days(-6),
     ),
     DemoTask(
-        "Filter tasks by deadline: exact day or range",
-        "A date picker for one day or a range, sent as deadline_from and deadline_to.",
+        "Фільтр задач за дедлайном: один день або діапазон",
+        "Календар для одного дня чи діапазону, на сервер іде як deadline_from і deadline_to.",
         DONE, MEDIUM, _days(9.6), _days(-7),
     ),
     DemoTask(
-        "Delete a task and change its status from the row",
+        "Видалення задачі й зміна статусу просто з рядка",
         None,
         DONE, MEDIUM, _days(11.4), _days(-9),
     ),
     DemoTask(
-        "Create and edit form with an undo toast",
-        "One dialog for both, validated like the API; every create, edit and status change can "
-        "be undone for a few seconds.",
+        "Форма створення й редагування з тостом для скасування",
+        "Один діалог для обох дій із тією самою валідацією, що й в API; будь-яке створення, "
+        "редагування чи зміну статусу можна скасувати протягом кількох секунд.",
         DONE, HIGH, _days(12.2), _days(-9),
     ),
     DemoTask(
-        "Search, status filter and sorting toolbar",
-        "Search waits for a pause in typing; the whole view lives in the address, so a reload "
-        "shows the same tasks.",
+        "Панель інструментів: пошук, фільтр за статусом і сортування",
+        "Пошук чекає паузи в наборі; увесь стан вигляду живе в адресі, тож після "
+        "перезавантаження видно ті самі задачі.",
         DONE, HIGH, _days(13.1), _days(-10),
     ),
     DemoTask(
-        "Settings: theme, tasks per page, Ukrainian and English",
-        "Kept in local storage, applied without a reload.",
+        "Налаштування: тема, кількість задач на сторінці, українська й англійська",
+        "Зберігаються в local storage і застосовуються без перезавантаження.",
         DONE, MEDIUM, _days(13.9), _days(-11),
     ),
     DemoTask(
-        "Task list with pagination",
-        "Twenty tasks a page by default, with the page kept in the address.",
+        "Список задач із пагінацією",
+        "Типово двадцять задач на сторінці, номер сторінки зберігається в адресі.",
         DONE, HIGH, _days(14.6), _days(-12),
     ),
     DemoTask(
-        "Frontend foundation: generated API client, design tokens and app shell",
-        "orval builds the client from the exported spec; Tailwind tokens and reka-ui give the "
-        "light and dark themes.",
+        "Основа фронтенду: згенерований API-клієнт, дизайн-токени й каркас застосунку",
+        "orval генерує клієнт з експортованої специфікації; токени Tailwind і reka-ui дають "
+        "світлу й темну теми.",
         DONE, HIGH, _days(15.4), _days(-13),
     ),
     DemoTask(
-        "Demo data seed for a fresh install",
+        "Демодані для чистого встановлення",
         None,
         DONE, LOW, _days(16.5), None,
     ),
     DemoTask(
-        "Backend test suite with 100% coverage",
-        "Integration tests against a real PostgreSQL; the run fails if coverage drops.",
+        "Тести бекенду зі 100% покриттям",
+        "Інтеграційні тести на справжньому PostgreSQL; прогін падає, якщо покриття знижується.",
         DONE, MEDIUM, _days(17.2), _days(-15),
     ),
     DemoTask(
-        "OpenAPI docs with request and response examples",
-        "Every endpoint, parameter and error described in Swagger UI and ReDoc, and the spec "
-        "exported for the client.",
+        "Документація OpenAPI з прикладами запитів і відповідей",
+        "Кожен ендпоінт, параметр і помилка описані в Swagger UI та ReDoc, а специфікація "
+        "експортується для клієнта.",
         DONE, MEDIUM, _days(17.8), _days(-15),
     ),
     DemoTask(
-        "Task list filters: status, title search, sorting and pagination",
-        "Search is case-insensitive and treats % and _ literally; deleted tasks never appear.",
+        "Фільтри списку задач: статус, пошук за назвою, сортування й пагінація",
+        "Пошук не зважає на регістр, а % і _ сприймає буквально; видалені задачі не "
+        "показуються ніколи.",
         DONE, HIGH, _days(19.3), _days(-17),
     ),
     DemoTask(
-        "Tasks API: schemas, validation and CRUD with soft delete",
-        "Pydantic models for create, update and read, consistent error responses, and deleted "
-        "tasks kept with a timestamp.",
+        "API задач: схеми, валідація й CRUD із м’яким видаленням",
+        "Моделі Pydantic для створення, оновлення й читання, однаковий формат помилок, а "
+        "видалені задачі лишаються в базі з позначкою часу.",
         DONE, HIGH, _days(20.1), _days(-18),
     ),
     DemoTask(
-        "FastAPI app skeleton and database layer",
-        "Settings from the environment, a health endpoint, async SQLAlchemy with Alembic and "
-        "the first Task migration.",
+        "Каркас застосунку на FastAPI і шар бази даних",
+        "Налаштування із середовища, ендпоінт health, асинхронний SQLAlchemy з Alembic і "
+        "перша міграція Task.",
         DONE, HIGH, _days(21.0), _days(-19),
     ),
     DemoTask(
-        "Docker Compose setup: database, backend and frontend in one command",
-        "PostgreSQL, the API and the web app start with `docker compose up`; health checks "
-        "decide the start order.",
+        "Docker Compose: база даних, бекенд і фронтенд однією командою",
+        "PostgreSQL, API й вебзастосунок стартують через `docker compose up`; порядок запуску "
+        "визначають health checks.",
         DONE, HIGH, _days(21.6), _days(-20.5),
     ),
 )
