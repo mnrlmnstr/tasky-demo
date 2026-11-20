@@ -238,6 +238,26 @@ describe('toolbar on the page', () => {
     expect(clearFiltersButton(page)).toBeUndefined()
   })
 
+  it.each([
+    ['the toolbar', 'main > :first-child button'],
+    ['the empty list', 'main [data-testid="task-list-empty"] button'],
+  ])('drops search text still waiting to be searched when "Clear filters" is pressed in %s', async (_where, selector) => {
+    const api = fakeTasksApi()
+    const page = await openApp('/?status=todo')
+    await api.respondTo(0, pageOf([]))
+    await searchBox(page).setValue('report')
+
+    await page.findAll(selector).find((button) => button.text() === 'Clear filters')?.trigger('click')
+    await settle()
+    await vi.advanceTimersByTimeAsync(SEARCH_DELAY)
+    await flushPromises()
+
+    expect(searchBox(page).element.value).toBe('')
+    expect(api.queries.at(-1)).toEqual({ ordering: '-created_at', page: '1', page_size: '20' })
+    expect(api.queries.some((query) => query.search !== undefined)).toBe(false)
+    expect(location.search).toBe('')
+  })
+
   it('empties the search field when the empty list offers to clear the filters', async () => {
     const api = fakeTasksApi()
     const page = await openApp('/?search=nothing')

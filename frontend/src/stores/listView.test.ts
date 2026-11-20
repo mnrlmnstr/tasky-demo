@@ -325,6 +325,20 @@ describe('clearing the filters', () => {
     expect(address()).toBe('/?ordering=deadline')
   })
 
+  it('tells who listens, before the view changes, every time the filters are cleared', () => {
+    addressIs('/?search=report')
+    const view = loadStore()
+    const seen: string[] = []
+    view.onFiltersCleared(() => {
+      seen.push(view.search)
+    })
+
+    view.clearFilters()
+    view.clearFilters()
+
+    expect(seen).toEqual(['report', ''])
+  })
+
   it('leaves the page alone when no filter is set', async () => {
     addressIs('/?ordering=deadline&page=4')
     const view = loadStore()

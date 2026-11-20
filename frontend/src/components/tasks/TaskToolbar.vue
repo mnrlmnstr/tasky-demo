@@ -55,10 +55,11 @@ function clearSearch(): void {
   searchField.value?.focus()
 }
 
-function clearFilters(): void {
+// Whichever "Clear filters" was pressed, the toolbar's or the empty list's, typing still waiting out
+// the pause goes with the filters: the pause then ends on an empty field and searches for nothing.
+view.onFiltersCleared(() => {
   typed.value = ''
-  view.clearFilters()
-}
+})
 
 const statusOptions = computed(() =>
   STATUS_FILTERS.map((status) => ({
@@ -122,7 +123,7 @@ const sortItems = computed(() =>
       </template>
     </DropdownMenu>
 
-    <Button v-if="view.isFiltered" variant="ghost" @click="clearFilters">
+    <Button v-if="view.isFiltered" variant="ghost" @click="view.clearFilters()">
       {{ t('toolbar.clearFilters') }}
     </Button>
   </div>
