@@ -68,7 +68,9 @@ async def create_task(
 @router.get("", response_model=Page[TaskRead], summary="List tasks")
 async def list_tasks(query: Annotated[TaskListQuery, Query()], session: Session) -> Page[TaskRead]:
     """One page of tasks, newest first unless `ordering` says otherwise. Filter by `status`
-    and search titles with `search`. Deleted tasks never appear."""
+    and search titles with `search`. `deadline_from` (inclusive) and `deadline_to` (exclusive)
+    keep tasks due in that range and leave out tasks without a deadline; `deadline_from` after
+    `deadline_to` answers `422`. Deleted tasks never appear."""
     tasks, total = await task_service.list_tasks(session, query)
     return Page[TaskRead].of(
         [TaskRead.model_validate(task) for task in tasks],

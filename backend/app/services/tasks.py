@@ -48,6 +48,11 @@ async def list_tasks(session: AsyncSession, query: TaskListQuery) -> tuple[list[
     if query.search is not None:
         # autoescape makes %, _ and the escape character itself match literally.
         matching = matching.where(Task.title.icontains(query.search, autoescape=True))
+    # A missing deadline compares as NULL, so either bound leaves those tasks out.
+    if query.deadline_from is not None:
+        matching = matching.where(Task.deadline >= query.deadline_from)
+    if query.deadline_to is not None:
+        matching = matching.where(Task.deadline < query.deadline_to)
     total = await session.scalar(select(func.count()).select_from(matching.subquery())) or 0
     # Past the end there is nothing to fetch, and a huge offset would overflow the database's int.
     if query.offset >= total:

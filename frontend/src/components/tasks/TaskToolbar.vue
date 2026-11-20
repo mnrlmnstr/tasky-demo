@@ -8,6 +8,7 @@ import { STATUS_FILTERS, useListViewStore } from '../../stores/listView'
 import Button from '../ui/Button.vue'
 import DropdownMenu from '../ui/DropdownMenu.vue'
 import SegmentedControl from '../ui/SegmentedControl.vue'
+import DeadlineFilter from './DeadlineFilter.vue'
 
 // In the order the menu lists them. Every ordering the API knows is here, so a new one does not
 // compile until it has a label.
@@ -51,18 +52,22 @@ const sortItems = computed(() =>
       class="col-span-2 col-start-1 row-start-1 justify-self-start max-md:w-full md:col-span-1 [&>button]:flex-auto [&>button]:whitespace-nowrap max-sm:[&>button]:px-1.5"
     />
 
-    <DropdownMenu :items="sortItems" :checked="view.ordering" @select="view.ordering = $event">
-      <template #trigger>
-        <!-- A long name is shortened to leave room for "Clear filters"; the accessible name stays whole. -->
-        <Button
-          :aria-label="t('toolbar.sortBy', { sort: sortLabel })"
-          class="col-start-1 row-start-2 max-w-full justify-self-start md:col-start-3 md:row-start-1 md:justify-self-end"
-        >
-          <ArrowUpDown class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
-          <span class="truncate">{{ sortLabel }}</span>
-        </Button>
-      </template>
-    </DropdownMenu>
+    <!-- The deadline filter rides with the sorting, so it adds no row. -->
+    <div
+      class="col-start-1 row-start-2 flex max-w-full min-w-0 gap-2 justify-self-start md:col-start-3 md:row-start-1 md:justify-self-end"
+    >
+      <DeadlineFilter />
+
+      <DropdownMenu :items="sortItems" :checked="view.ordering" @select="view.ordering = $event">
+        <template #trigger>
+          <!-- A long name is shortened to leave room for "Clear filters"; the accessible name stays whole. -->
+          <Button :aria-label="t('toolbar.sortBy', { sort: sortLabel })" class="min-w-0">
+            <ArrowUpDown class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
+            <span class="truncate">{{ sortLabel }}</span>
+          </Button>
+        </template>
+      </DropdownMenu>
+    </div>
 
     <Button
       v-if="view.isFiltered"

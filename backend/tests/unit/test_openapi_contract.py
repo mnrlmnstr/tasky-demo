@@ -58,6 +58,17 @@ async def test_list_rejects_a_status_filter_that_is_not_a_status(query: str) -> 
     assert [error["loc"][-1] for error in response.json()["detail"]] == ["status"]
 
 
+@pytest.mark.parametrize("name", ["deadline_from", "deadline_to"])
+def test_list_documents_deadline_bounds_as_optional_datetimes_without_null(name: str) -> None:
+    parameters = create_app().openapi()["paths"]["/api/v1/tasks"]["get"]["parameters"]
+    [parameter] = [p for p in parameters if p["name"] == name]
+
+    assert parameter["required"] is False
+    assert parameter["schema"]["type"] == "string"
+    assert parameter["schema"]["format"] == "date-time"
+    assert "null" not in json.dumps(parameter["schema"])
+
+
 @pytest.mark.parametrize(
     "schema", ["TaskRead", "TaskStatus", "TaskPriority", "TaskCreate", "TaskUpdate"]
 )
