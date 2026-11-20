@@ -292,7 +292,10 @@ describe('clear filters', () => {
     const rowClasses = (classes: string[]) => classes.filter((name) => /(^|:)row-start-/.test(name)).sort()
     const clear = findClearFilters(toolbar)?.classes() ?? []
     expect(rowClasses(clear)).toEqual(['md:row-start-1', 'row-start-2'])
-    expect(rowClasses(sortTrigger(toolbar).classes())).toEqual(['md:row-start-1', 'row-start-2'])
+    // The sorting and the deadline filter share one cell.
+    const sortCell = sortTrigger(toolbar).element.parentElement
+    expect(sortCell?.querySelector('[data-testid="deadline-filter"]')).not.toBeNull()
+    expect(rowClasses(Array.from(sortCell?.classList ?? []))).toEqual(['md:row-start-1', 'row-start-2'])
     expect(rowClasses(toolbar.get('[role="group"][aria-label="Status"]').classes())).toEqual(['row-start-1'])
   })
 
