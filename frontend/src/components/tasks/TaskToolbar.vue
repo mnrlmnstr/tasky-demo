@@ -76,8 +76,13 @@ const sortItems = computed(() =>
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-2">
-    <div class="relative min-w-0 flex-1 basis-48">
+  <!--
+    A grid of rows that are always there, so the toolbar keeps its height whatever is set: on a phone
+    search / status / sorting, on a wider screen search and sorting / status. "Clear filters" takes the
+    free end of the last row and never adds one.
+  -->
+  <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+    <div class="relative col-span-2 col-start-1 row-start-1 min-w-0 md:col-span-1">
       <Search
         class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-muted"
         aria-hidden="true"
@@ -106,24 +111,33 @@ const sortItems = computed(() =>
       </button>
     </div>
 
-    <!-- On a phone the four statuses share the full width, with tighter segments so no label breaks in two. -->
+    <!-- Below the wide layout the four statuses share the full width; on a phone with tighter segments, so no label breaks in two. -->
     <SegmentedControl
       v-model="view.status"
       :options="statusOptions"
       :label="t('toolbar.statusLabel')"
-      class="max-sm:w-full [&>button]:flex-auto [&>button]:whitespace-nowrap max-sm:[&>button]:px-1.5"
+      class="col-span-2 col-start-1 row-start-2 justify-self-start max-md:w-full md:col-span-1 [&>button]:flex-auto [&>button]:whitespace-nowrap max-sm:[&>button]:px-1.5"
     />
 
     <DropdownMenu :items="sortItems" :checked="view.ordering" @select="view.ordering = $event">
       <template #trigger>
-        <Button :aria-label="t('toolbar.sortBy', { sort: sortLabel })">
-          <ArrowUpDown class="size-4 text-text-muted" aria-hidden="true" />
-          {{ sortLabel }}
+        <!-- A long name is shortened on a phone to leave room for "Clear filters"; the accessible name stays whole. -->
+        <Button
+          :aria-label="t('toolbar.sortBy', { sort: sortLabel })"
+          class="col-start-1 row-start-3 max-w-full justify-self-start md:col-start-2 md:row-start-1 md:justify-self-end"
+        >
+          <ArrowUpDown class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
+          <span class="truncate">{{ sortLabel }}</span>
         </Button>
       </template>
     </DropdownMenu>
 
-    <Button v-if="view.isFiltered" variant="ghost" @click="view.clearFilters()">
+    <Button
+      v-if="view.isFiltered"
+      variant="ghost"
+      class="col-start-2 row-start-3 justify-self-end md:row-start-2"
+      @click="view.clearFilters()"
+    >
       {{ t('toolbar.clearFilters') }}
     </Button>
   </div>
