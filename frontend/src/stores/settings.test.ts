@@ -134,6 +134,8 @@ describe('unusable saved data', () => {
     ['a non-string theme', { theme: 1, pageSize: 50, locale: 'uk' }, 'system', 50, 'uk'],
     ['an unsupported page size', { theme: 'dark', pageSize: 25, locale: 'uk' }, 'dark', 20, 'uk'],
     ['a page size as text', { theme: 'dark', pageSize: '50', locale: 'uk' }, 'dark', 20, 'uk'],
+    ['"all" in another case', { theme: 'dark', pageSize: 'All', locale: 'uk' }, 'dark', 20, 'uk'],
+    ['"all" tasks per page', { theme: 'dark', pageSize: 'all', locale: 'uk' }, 'dark', 'all', 'uk'],
     ['an unknown language', { theme: 'dark', pageSize: 50, locale: 'de' }, 'dark', 50, 'en'],
     ['a missing theme', { pageSize: 50, locale: 'uk' }, 'system', 50, 'uk'],
     ['a missing page size', { theme: 'dark', locale: 'uk' }, 'dark', 20, 'uk'],
@@ -319,6 +321,15 @@ describe('saving', () => {
     settings.pageSize = 50
 
     expect(storedSettings()).toEqual({ theme: 'system', pageSize: 50, locale: 'en', density: 'comfortable', showDescriptions: false })
+  })
+
+  it('stores "all" tasks per page and restores it on the next visit', () => {
+    const settings = loadStore()
+
+    settings.pageSize = 'all'
+
+    expect(storedSettings()).toEqual({ theme: 'system', pageSize: 'all', locale: 'en', density: 'comfortable', showDescriptions: false })
+    expect(loadStore().pageSize).toBe('all')
   })
 
   it('stores a changed language', () => {

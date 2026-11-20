@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, shallowRef, watch } from 'vue'
 
 import { listTasks, type ListTasksParams, type PageTaskRead, type TaskRead } from '../api/generated/client'
+import { listAllTasks, MAX_PAGE_SIZE } from '../api/allPages'
 import { failureKind, type ApiErrorKind } from '../api/http'
 import { latestOnly } from '../api/latestOnly'
 import { FIRST_PAGE, useListViewStore } from './listView'
@@ -34,11 +35,21 @@ export const useTasksStore = defineStore('tasks', () => {
     return error.value === null ? 'ready' : 'failed'
   })
 
-  const query = computed<ListTasksParams>(() => ({ ...view.queryParams, page_size: settings.pageSize }))
+  // With all the tasks on one page, the view is always on page 1 and the pages are asked for 100 at a time.
+  const allOnOnePage = computed(() => settings.pageSize === 'all')
+  const query = computed<ListTasksParams>(() => ({
+    ...view.queryParams,
+    page_size: settings.pageSize === 'all' ? MAX_PAGE_SIZE : settings.pageSize,
+  }))
   // Compared as text, so a view rebuilt with the same values (back and forward do that) is not a change.
   const queryKey = computed(() => JSON.stringify(query.value))
 
-  const requestList = latestOnly((signal, params: ListTasksParams) => listTasks(params, { signal }))
+  // One signal for the whole set of pages, so a newer query cancels every one of them.
+  const requestList = latestOnly((signal, params: ListTasksParams, all: boolean) => {
+    if (!all) return listTasks(params, { signal })
+    const { page: _page, page_size: _pageSize, ...filters } = params
+    return listAllTasks(signal, filters)
+  })
 
   let latestRequest = 0
   // The query the state already accounts for: the watcher below skips a change to it.
@@ -55,7 +66,7 @@ export const useTasksStore = defineStore('tasks', () => {
     inFlight.value = true
     let answer: PageTaskRead
     try {
-      answer = await requestList(params)
+      answer = await requestList(params, allOnOnePage.value)
     } catch (failure) {
       if (request !== latestRequest) return
       error.value = failureKind(failure)

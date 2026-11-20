@@ -26,13 +26,15 @@ const densityOptions = computed(() =>
   DENSITIES.map((density) => ({ value: density, label: t(`settings.densities.${density}`) })),
 )
 
-const pageSizeOptions =PAGE_SIZES.map((size) => ({ value: String(size), label: String(size) }))
+const pageSizeOptions = computed(() =>
+  PAGE_SIZES.map((size) => ({ value: String(size), label: size === 'all' ? t('settings.allTasks') : String(size) })),
+)
 
-// The store keeps the page size as a number; the segmented control speaks strings.
+// The store keeps the page size as a number or 'all'; the segmented control speaks strings.
 const pageSize = computed({
   get: () => String(settings.pageSize),
   set: (value) => {
-    settings.pageSize = oneOf(PAGE_SIZES, Number(value), settings.pageSize)
+    settings.pageSize = oneOf(PAGE_SIZES, value === 'all' ? value : Number(value), settings.pageSize)
   },
 })
 

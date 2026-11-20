@@ -8,7 +8,8 @@ export const SETTINGS_STORAGE_KEY = 'tasky:settings'
 export const THEMES = ['light', 'dark', 'system'] as const
 export type Theme = (typeof THEMES)[number]
 
-export const PAGE_SIZES = [10, 20, 50] as const
+/** `'all'` shows every matching task on one page, with no pagination. */
+export const PAGE_SIZES = [10, 20, 50, 'all'] as const
 export type PageSize = (typeof PAGE_SIZES)[number]
 
 export const LOCALES = ['uk', 'en'] as const

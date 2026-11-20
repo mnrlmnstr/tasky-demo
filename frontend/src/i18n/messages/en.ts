@@ -106,6 +106,7 @@ export default {
       system: 'System',
     },
     pageSize: 'Tasks per page',
+    allTasks: 'All',
     language: 'Language',
     languages: {
       uk: 'Українська',
