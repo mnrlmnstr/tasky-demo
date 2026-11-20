@@ -142,20 +142,25 @@ cd ../frontend && npm run api:generate                     # rewrites frontend/s
 
 Both outputs are committed. `frontend/src/api/generated` is never edited by hand, and nothing checks that it matches the API: run the two commands whenever a route or schema changes.
 
-### Tests and type checks
+### Tests, lint and type checks
 
 From `frontend/` on the host (after `npm ci`), or in the running container:
 
 ```bash
-npm test                     # Vitest, happy-dom
+npm run check                # all of the below, in this order, stopping at the first failure
 npm run typecheck            # vue-tsc
-npx vitest run --coverage    # with a coverage summary
+npm run lint                 # ESLint
+npm run lint:fix             # ESLint, applying the fixes it can make itself
+npm test                     # Vitest, happy-dom
+npm run test:coverage        # Vitest with a coverage summary and the 100% threshold
 
 docker compose exec frontend npm test
-docker compose exec frontend npm run typecheck
+docker compose exec frontend npm run check
 ```
 
-Tests sit next to the code they cover (`*.test.ts`); app-level tests run `App.vue` against an in-memory fake of the API (`src/test/`). Coverage counts `src/**/*.{ts,vue}` except the generated client and is currently 100%, but no threshold is enforced.
+Tests sit next to the code they cover (`*.test.ts`); app-level tests run `App.vue` against an in-memory fake of the API (`src/test/`). Coverage counts `src/**/*.{ts,vue}` except the generated client, and `npm run test:coverage` (so also `npm run check`) fails if any statement, branch, function or line of it goes untested.
+
+ESLint (`eslint.config.js`) runs the recommended rules of `eslint-plugin-vue` and the type-aware recommended rules of `typescript-eslint`, and skips `src/api/generated`. There is no formatter, so the rules that only police layout are off.
 
 ### Structure
 
@@ -259,7 +264,7 @@ docker compose exec backend ruff check .
 docker compose exec backend ruff format --check .
 ```
 
-Frontend type checks and coverage: see [Frontend tests and type checks](#tests-and-type-checks).
+Frontend lint, type checks and coverage in one command (`docker compose exec frontend npm run check`): see [Frontend tests, lint and type checks](#tests-lint-and-type-checks).
 
 End-to-end check of the whole Compose setup (needs `curl` on the host):
 
