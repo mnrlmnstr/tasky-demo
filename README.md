@@ -2,17 +2,28 @@
 
 A full-stack task manager built as a test assignment: a Python REST API backed by PostgreSQL, with a Vue 3 single-page frontend, all running through Docker Compose.
 
-> **Status:** the backend is done (API, tests, OpenAPI docs, demo data). The frontend is in progress: for now it shows the paginated task list (status, priority, deadline with an overdue mark, created date) with loading, empty and error states; the header's settings and "New task" buttons do nothing yet. See the [Frontend](https://github.com/mnrlmnstr/tasky-demo/milestone/2) milestone.
+![Task list](docs/screenshots/list.png)
+
+## Contents
+
+- [Tech stack](#tech-stack)
+- [Quick start](#quick-start)
+- [Frontend](#frontend)
+- [API](#api)
+- [Tests](#tests)
+- [Migrations](#migrations)
+- [Development](#development)
+- [Project structure](#project-structure)
 
 ## Tech stack
 
-| Layer    | Choice                                                            |
-| -------- | ----------------------------------------------------------------- |
-| Backend  | Python 3.13, FastAPI, SQLAlchemy 2 (async), Alembic, Pydantic, uv |
-| Database | PostgreSQL 17                                                     |
-| Frontend | Vue 3, Vite, TypeScript, npm                                      |
-| Tests    | pytest, pytest-cov, httpx, Vitest                                 |
-| Infra    | Docker, Docker Compose                                            |
+| Layer    | Choice                                                                                 |
+| -------- | -------------------------------------------------------------------------------------- |
+| Backend  | Python 3.13, FastAPI, SQLAlchemy 2 (async), Alembic, Pydantic, uv                      |
+| Database | PostgreSQL 17                                                                          |
+| Frontend | Vue 3, Vite, TypeScript, Pinia, vue-i18n, Tailwind CSS 4, Reka UI, Orval, npm          |
+| Tests    | pytest, pytest-cov, httpx, Vitest, Vue Test Utils, happy-dom                           |
+| Infra    | Docker, Docker Compose                                                                 |
 
 ## Quick start
 
@@ -64,6 +75,107 @@ All are optional. To override them, copy `.env.example` to `.env` and edit the c
 | `SEED_DEMO_DATA`    | `true`   | load the demo tasks on start; `false` starts with an empty database |
 
 `POSTGRES_USER` and `POSTGRES_PASSWORD` are inserted as they are into the backend's database URL, so they must be URL-safe: no `@`, `/` or `:` (letters, digits, `-` and `_` are fine). The credentials are applied when the database volume is first created; to change them later, reset the volume with `docker compose down -v`.
+
+## Frontend
+
+A single-page Vue 3 app served by the Vite dev server at http://localhost:8080. The UI is in Ukrainian or English.
+
+| Board | Edit form |
+| ----- | --------- |
+| ![Board view](docs/screenshots/board.png) | ![Task form](docs/screenshots/task-form.png) |
+
+![Table view, dark theme, Ukrainian](docs/screenshots/table-dark-uk.png)
+
+### What it can do
+
+- **Views** (switch in the toolbar):
+  - list: one row per task with status, title, priority, deadline and creation date, paginated;
+  - board: three columns (To do, In progress, Done) with counts; drag a card to another column to change its status (the card's status menu does the same from the keyboard); each column shows up to 100 tasks and says how many it leaves out;
+  - table: sortable Deadline and Created headers and an actions menu on each row, paginated.
+- **Finding tasks:**
+  - search by title (sent after a 300 ms pause in typing);
+  - status filter: All, To do, In progress, Done (the board shows every status in its columns);
+  - deadline filter: one day or a range picked in a calendar, with quick picks Today, This week and Overdue; either end can stay open;
+  - sorting: newest or oldest first, deadline soonest or latest first (tasks with no deadline go last);
+  - "Clear filters" in the toolbar and on a filtered list that comes back empty.
+- **Changing tasks:**
+  - create and edit in one form: title, description, status, priority, and a deadline with a calendar and a time field; the API's validation errors show next to their fields;
+  - change the status from the status menu on a row or a card, or by dragging on the board;
+  - delete from a row or a card, behind a confirmation (there is no restore);
+  - create, edit and status changes show a toast with **Undo** for 6 seconds (the timer pauses while the toast is hovered or focused). Delete has no undo.
+- **Settings** (gear button): theme (light, dark, system), tasks per page (10, 20, 50), language (Українська, English; the first visit follows the browser), density (comfortable, compact), show the first line of descriptions in rows and cards.
+- **States:** loading and updating indicators, an empty list, "no tasks match your filters", and error messages by kind (network, server, task not found) with a **Try again** button.
+- Dates, relative times ("3 days ago") and plurals follow the chosen language; overdue deadlines are marked.
+
+### State and persistence
+
+| Where | Key | What |
+| ----- | --- | ---- |
+| URL query | `search`, `status`, `ordering`, `deadline_from`, `deadline_to`, `page`, `view` | the current view, so a link or a reload shows the same tasks; default values are left out of the address |
+| local storage | `tasky:list-view` | the same filters and view (not the page), used when the address has none of them |
+| local storage | `tasky:settings` | theme, page size, language, density, show descriptions |
+
+The address wins over local storage. Invalid values in either are replaced with defaults one field at a time. Filter, sort, page and view changes add a browser history step, so Back returns to the previous view; typing in the search replaces the current step instead. If local storage is blocked, the app still works and keeps the view in the address only.
+
+### How `/api` is proxied
+
+The frontend calls the API with relative URLs (`/api/v1/...`), and the Vite dev server forwards every `/api` request to `API_PROXY_TARGET` (see `frontend/vite.config.ts`). The default, `http://backend:8000`, is the backend service in Compose. The browser only ever talks to the frontend's origin, so there is no CORS setup and no API address baked into the build.
+
+To run the dev server on the host against a backend published on port 8000:
+
+```bash
+cd frontend
+npm ci
+API_PROXY_TARGET=http://localhost:8000 npx vite
+```
+
+It listens on http://localhost:5173.
+
+### API client
+
+`frontend/src/api/generated/client.ts` is generated by [Orval](https://orval.dev) from the backend's OpenAPI spec and wraps `fetch` with `src/api/http.ts`, which throws typed errors. Regenerate it after an API change (on the host; needs `uv sync` in `backend/` and `npm ci` in `frontend/`):
+
+```bash
+cd backend && .venv/bin/python -m scripts.export_openapi   # writes frontend/openapi.json
+cd ../frontend && npm run api:generate                     # rewrites frontend/src/api/generated
+```
+
+Both outputs are committed. `frontend/src/api/generated` is never edited by hand, and nothing checks that it matches the API: run the two commands whenever a route or schema changes.
+
+### Tests and type checks
+
+From `frontend/` on the host (after `npm ci`), or in the running container:
+
+```bash
+npm test                     # Vitest, happy-dom
+npm run typecheck            # vue-tsc
+npx vitest run --coverage    # with a coverage summary
+
+docker compose exec frontend npm test
+docker compose exec frontend npm run typecheck
+```
+
+Tests sit next to the code they cover (`*.test.ts`); app-level tests run `App.vue` against an in-memory fake of the API (`src/test/`). Coverage counts `src/**/*.{ts,vue}` except the generated client and is currently 100%, but no threshold is enforced.
+
+### Structure
+
+```
+frontend/src/
+├── api/              # generated Orval client, fetch wrapper and errors, query string, latest-request guard
+├── components/
+│   ├── ui/           # buttons, dialogs, menus, switch, segmented control (on Reka UI)
+│   ├── tasks/        # toolbar, search, filters, list rows, form, delete confirmation, pagination
+│   │   ├── board/    # board, columns, cards
+│   │   └── table/    # table and its rows
+│   ├── settings/     # settings dialog
+│   └── undo/         # undo toast
+├── stores/           # Pinia: tasks, board, list view (URL + storage), settings, form, undo
+├── i18n/             # uk and en messages, date, number and error formatting
+├── styles/           # Tailwind entry and theme tokens (light and dark)
+├── test/             # shared test helpers and the fake API
+├── App.vue
+└── main.ts
+```
 
 ## API
 
@@ -147,14 +259,7 @@ docker compose exec backend ruff check .
 docker compose exec backend ruff format --check .
 ```
 
-Regenerate the API client after an API change (on the host; needs the backend virtualenv and `npm install` in `frontend/`):
-
-```bash
-cd backend && .venv/bin/python -m scripts.export_openapi   # writes frontend/openapi.json
-cd ../frontend && npm run api:generate                     # rewrites frontend/src/api/generated
-```
-
-Both outputs are committed. `frontend/src/api/generated` is never edited by hand, and nothing checks that it matches the API: run the two commands whenever a route or schema changes.
+Frontend type checks and coverage: see [Frontend tests and type checks](#tests-and-type-checks).
 
 End-to-end check of the whole Compose setup (needs `curl` on the host):
 
@@ -205,7 +310,13 @@ tasky-demo/
 │   ├── Dockerfile
 │   ├── entrypoint.sh     # migrations, demo data, then the server
 │   └── pyproject.toml
-├── frontend/             # Vue 3 + Vite + TypeScript app
+├── frontend/             # Vue 3 + Vite + TypeScript app (see Frontend → Structure)
+│   ├── src/
+│   ├── openapi.json      # API spec exported from the backend, input of the client generator
+│   ├── orval.config.ts
+│   ├── vite.config.ts    # dev server, `/api` proxy, Vitest
+│   └── Dockerfile
+├── docs/screenshots/     # images used in this README
 ├── scripts/
 │   └── smoke.sh          # end-to-end check of the Compose setup
 ├── docker-compose.yml
