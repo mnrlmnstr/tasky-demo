@@ -206,7 +206,7 @@ describe('message files', () => {
     'toolbar.searchPlaceholder',
     'toolbar.statusLabel',
     'toolbar.statusAll',
-    'toolbar.sortLabel',
+    'toolbar.sortBy',
     'toolbar.sort.newest',
     'toolbar.sort.oldest',
     'toolbar.sort.deadlineSoonest',

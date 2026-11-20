@@ -61,7 +61,6 @@ export default {
     clearSearch: 'Clear search',
     statusLabel: 'Status',
     statusAll: 'All',
-    sortLabel: 'Sort',
     sortBy: 'Sort: {sort}',
     sort: {
       newest: 'Newest first',

@@ -64,7 +64,6 @@ const uk: typeof en = {
     clearSearch: 'Очистити пошук',
     statusLabel: 'Статус',
     statusAll: 'Усі',
-    sortLabel: 'Сортування',
     sortBy: 'Сортування: {sort}',
     sort: {
       newest: 'Спочатку нові',
