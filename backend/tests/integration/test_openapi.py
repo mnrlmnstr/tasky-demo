@@ -88,7 +88,15 @@ async def test_every_route_has_a_summary_and_a_description(
     assert operation.get("description")
 
 
-LIST_QUERY_PARAMETERS = ["status", "search", "ordering", "page", "page_size"]
+LIST_QUERY_PARAMETERS = [
+    "status",
+    "search",
+    "deadline_from",
+    "deadline_to",
+    "ordering",
+    "page",
+    "page_size",
+]
 
 
 @pytest.mark.parametrize("name", LIST_QUERY_PARAMETERS)

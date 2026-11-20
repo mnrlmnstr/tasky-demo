@@ -11,6 +11,7 @@ from pydantic import (
     ConfigDict,
     Field,
     StringConstraints,
+    ValidationInfo,
     field_validator,
 )
 
@@ -77,6 +78,24 @@ class TaskListQuery(BaseModel):
         examples=["звіт"],
         json_schema_extra=_without_null,
     )
+    deadline_from: Deadline | None = Field(
+        default=None,
+        description=(
+            "Only tasks due at or after this instant (inclusive), with a timezone. "
+            "Tasks without a deadline are left out while either bound is set."
+        ),
+        examples=["2026-11-19T22:00:00Z"],
+        json_schema_extra=_without_null,
+    )
+    deadline_to: Deadline | None = Field(
+        default=None,
+        description=(
+            "Only tasks due before this instant (exclusive), with a timezone; "
+            "must not be before `deadline_from`."
+        ),
+        examples=["2026-11-20T22:00:00Z"],
+        json_schema_extra=_without_null,
+    )
     ordering: TaskOrdering = Field(
         default=TaskOrdering.CREATED_AT_DESC,
         description=(
@@ -89,6 +108,15 @@ class TaskListQuery(BaseModel):
     page_size: int = Field(
         default=20, ge=1, le=100, description="How many tasks per page (1 to 100).", examples=[20]
     )
+
+    # A field validator, not a model one, so the error points at `deadline_to`.
+    @field_validator("deadline_to")
+    @classmethod
+    def _not_before_from(cls, value: datetime | None, info: ValidationInfo) -> datetime | None:
+        start = info.data.get("deadline_from")
+        if value is not None and start is not None and start > value:
+            raise ValueError("must not be before deadline_from")
+        return value
 
     @property
     def offset(self) -> int:
