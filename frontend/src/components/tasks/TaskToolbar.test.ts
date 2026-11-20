@@ -1,14 +1,11 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { disposePinia, getActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick } from 'vue'
 
 import { useListViewStore } from '../../stores/listView'
 import type { Locale } from '../../stores/settings'
 import { appPlugins } from '../../test/appPlugins'
 import TaskToolbar from './TaskToolbar.vue'
-
-const SEARCH_DELAY = 300
 
 let mounted: VueWrapper | undefined
 
@@ -23,18 +20,6 @@ async function settle() {
   await flushPromises()
   await vi.advanceTimersByTimeAsync(1)
   await flushPromises()
-}
-
-function searchBox(toolbar: VueWrapper) {
-  return toolbar.get<HTMLInputElement>('input[type="search"]')
-}
-
-async function type(toolbar: VueWrapper, text: string) {
-  await searchBox(toolbar).setValue(text)
-}
-
-function findClearSearch(toolbar: VueWrapper) {
-  return toolbar.find('button[aria-label="Clear search"]')
 }
 
 function statusSegments(toolbar: VueWrapper) {
@@ -86,133 +71,11 @@ afterEach(() => {
   if (pinia) disposePinia(pinia)
 })
 
-describe('search', () => {
-  it('is a search field named for assistive technology, with a hint and a decorative search icon', async () => {
+describe('toolbar', () => {
+  it('holds no search field: the search lives in the header', async () => {
     const toolbar = await mountToolbar()
 
-    expect(searchBox(toolbar).attributes('aria-label')).toBe('Search tasks')
-    expect(searchBox(toolbar).attributes('placeholder')).toBe('Search by title')
-    expect(toolbar.get('svg.lucide-search').attributes('aria-hidden')).toBe('true')
-  })
-
-  it('shows what was typed at once but searches only after the typing has paused', async () => {
-    const toolbar = await mountToolbar()
-    const view = useListViewStore()
-
-    await type(toolbar, 'report')
-    await vi.advanceTimersByTimeAsync(SEARCH_DELAY - 1)
-
-    expect(searchBox(toolbar).element.value).toBe('report')
-    expect(view.search).toBe('')
-
-    await vi.advanceTimersByTimeAsync(1)
-
-    expect(view.search).toBe('report')
-  })
-
-  it('waits for the last keystroke: typing again starts the pause over', async () => {
-    const toolbar = await mountToolbar()
-    const view = useListViewStore()
-
-    await type(toolbar, 'rep')
-    await vi.advanceTimersByTimeAsync(SEARCH_DELAY - 100)
-    await type(toolbar, 'report')
-    await vi.advanceTimersByTimeAsync(SEARCH_DELAY - 100)
-
-    expect(view.search).toBe('')
-
-    await vi.advanceTimersByTimeAsync(100)
-
-    expect(view.search).toBe('report')
-  })
-
-  it('goes back to the first page when the search changes', async () => {
-    history.replaceState(null, '', '/?page=3')
-    const toolbar = await mountToolbar()
-    const view = useListViewStore()
-
-    await type(toolbar, 'report')
-    await vi.advanceTimersByTimeAsync(SEARCH_DELAY)
-
-    expect(view.page).toBe(1)
-  })
-
-  it('starts with the search the address carries', async () => {
-    history.replaceState(null, '', '/?search=report')
-
-    const toolbar = await mountToolbar()
-
-    expect(searchBox(toolbar).element.value).toBe('report')
-  })
-
-  it('follows a search changed elsewhere, such as by going back', async () => {
-    const toolbar = await mountToolbar()
-
-    useListViewStore().search = 'bank'
-    await nextTick()
-
-    expect(searchBox(toolbar).element.value).toBe('bank')
-  })
-
-  it('keeps a space typed at the end, although the search itself is trimmed', async () => {
-    const toolbar = await mountToolbar()
-    const view = useListViewStore()
-
-    await type(toolbar, 'write the ')
-    await vi.advanceTimersByTimeAsync(SEARCH_DELAY)
-    await nextTick()
-
-    expect(view.search).toBe('write the')
-    expect(searchBox(toolbar).element.value).toBe('write the ')
-  })
-
-  it('offers no clear button while the field is empty', async () => {
-    const toolbar = await mountToolbar()
-
-    expect(findClearSearch(toolbar).exists()).toBe(false)
-  })
-
-  it('offers a clear button as soon as something is typed', async () => {
-    const toolbar = await mountToolbar()
-
-    await type(toolbar, 'r')
-
-    expect(findClearSearch(toolbar).exists()).toBe(true)
-    expect(findClearSearch(toolbar).get('svg').attributes('aria-hidden')).toBe('true')
-  })
-
-  it('empties the field and the search at once when the clear button is pressed, and returns focus to the field', async () => {
-    history.replaceState(null, '', '/?search=report')
-    const toolbar = await mountToolbar()
-    const view = useListViewStore()
-
-    await findClearSearch(toolbar).trigger('click')
-
-    expect(searchBox(toolbar).element.value).toBe('')
-    expect(view.search).toBe('')
-    expect(document.activeElement).toBe(searchBox(toolbar).element)
-    expect(findClearSearch(toolbar).exists()).toBe(false)
-  })
-
-  it('does not search for text that was cleared before the pause ended', async () => {
-    const toolbar = await mountToolbar()
-    const view = useListViewStore()
-
-    await type(toolbar, 'report')
-    await findClearSearch(toolbar).trigger('click')
-    await vi.advanceTimersByTimeAsync(SEARCH_DELAY)
-
-    expect(view.search).toBe('')
-  })
-
-  it('names the field and its clear button in Ukrainian when the language is Ukrainian', async () => {
-    history.replaceState(null, '', '/?search=звіт')
-
-    const toolbar = await mountToolbar('uk')
-
-    expect(searchBox(toolbar).attributes('aria-label')).toBe('Пошук задач')
-    expect(searchBox(toolbar).attributes('placeholder')).toBe('Пошук за назвою')
-    expect(toolbar.find('button[aria-label="Очистити пошук"]').exists()).toBe(true)
+    expect(toolbar.find('input').exists()).toBe(false)
   })
 })
 
@@ -402,27 +265,13 @@ describe('clear filters', () => {
     expect(view.status).toBe('all')
     expect(view.ordering).toBe('deadline')
     expect(view.page).toBe(1)
-    expect(searchBox(toolbar).element.value).toBe('')
     expect(statusSegments(toolbar)[0].attributes('aria-pressed')).toBe('true')
     expect(findClearFilters(toolbar)).toBeUndefined()
   })
 
-  it('also drops text that was typed but not searched for yet', async () => {
-    history.replaceState(null, '', '/?status=done')
-    const toolbar = await mountToolbar()
-    const view = useListViewStore()
-
-    await type(toolbar, 'report')
-    await findClearFilters(toolbar)?.trigger('click')
-    await vi.advanceTimersByTimeAsync(SEARCH_DELAY)
-
-    expect(searchBox(toolbar).element.value).toBe('')
-    expect(view.search).toBe('')
-  })
-
-  // The toolbar is a grid of rows that are always there: a phone has search / status / sorting, a wider
-  // screen has search and sorting / status. "Clear filters" takes the free end of the last row, so it
-  // never adds a row and the list below does not move when a filter is set or cleared.
+  // The toolbar is a grid of rows that are always there: a phone has status / sorting, a wider screen
+  // has status and sorting on one row. "Clear filters" takes the free end of the last row, so it never
+  // adds a row and the list below does not move when a filter is set or cleared.
   it('takes the free end of a row the toolbar always has, instead of a row of its own', async () => {
     history.replaceState(null, '', '/?status=done')
 
@@ -430,9 +279,9 @@ describe('clear filters', () => {
 
     const rowClasses = (classes: string[]) => classes.filter((name) => /(^|:)row-start-/.test(name)).sort()
     const clear = findClearFilters(toolbar)?.classes() ?? []
-    expect(rowClasses(clear)).toEqual(['md:row-start-2', 'row-start-3'])
-    expect(rowClasses(sortTrigger(toolbar).classes())).toContain('row-start-3')
-    expect(rowClasses(toolbar.get('[role="group"][aria-label="Status"]').classes())).toEqual(['row-start-2'])
+    expect(rowClasses(clear)).toEqual(['md:row-start-1', 'row-start-2'])
+    expect(rowClasses(sortTrigger(toolbar).classes())).toEqual(['md:row-start-1', 'row-start-2'])
+    expect(rowClasses(toolbar.get('[role="group"][aria-label="Status"]').classes())).toEqual(['row-start-1'])
   })
 
   it('leaves room for itself by shortening a long sorting name, which the button still names in full', async () => {
@@ -444,6 +293,18 @@ describe('clear filters', () => {
     expect(label.text()).toBe('Deadline: latest first')
     expect(label.classes()).toContain('truncate')
     expect(sortTrigger(toolbar).attributes('aria-label')).toBe('Sort: Deadline: latest first')
+  })
+
+  // On a wider screen status, "Clear filters" and the sorting share one row: the sorting's column may
+  // shrink, the label of "Clear filters" may not, so a long Ukrainian label stays on one line.
+  it('keeps its label on one line and lets the sorting give way on a shared row', async () => {
+    history.replaceState(null, '', '/?status=done&ordering=-deadline')
+
+    const toolbar = await mountToolbar('uk')
+
+    const clear = toolbar.findAll('button').find((button) => button.text() === 'Скинути фільтри')
+    expect(clear?.classes()).toContain('whitespace-nowrap')
+    expect(toolbar.get('div.grid').classes()).toContain('md:grid-cols-[auto_minmax(min-content,1fr)_minmax(0,auto)]')
   })
 
   it('is named in Ukrainian when the language is Ukrainian', async () => {

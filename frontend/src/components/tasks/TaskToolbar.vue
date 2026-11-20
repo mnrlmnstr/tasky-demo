@@ -1,17 +1,13 @@
 <script setup lang="ts">
-import { useDebounceFn } from '@vueuse/core'
-import { ArrowUpDown, Search, X } from 'lucide-vue-next'
-import { computed, ref, useTemplateRef, watch } from 'vue'
+import { ArrowUpDown } from 'lucide-vue-next'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { TaskOrdering } from '../../api/generated/client'
 import { STATUS_FILTERS, useListViewStore } from '../../stores/listView'
 import Button from '../ui/Button.vue'
-import { CONTROL_CLASS, FOCUS_RING_CLASS } from '../ui/control'
 import DropdownMenu from '../ui/DropdownMenu.vue'
 import SegmentedControl from '../ui/SegmentedControl.vue'
-
-const SEARCH_DELAY_MS = 300
 
 // In the order the menu lists them. Every ordering the API knows is here, so a new one does not
 // compile until it has a label.
@@ -25,41 +21,6 @@ const SORT_ORDER: TaskOrdering[] = ['-created_at', 'created_at', 'deadline', '-d
 
 const { t } = useI18n()
 const view = useListViewStore()
-
-// What the field shows. It runs ahead of the view's search while the user is typing.
-const typed = ref(view.search)
-const searchField = useTemplateRef<HTMLInputElement>('searchField')
-
-// Reads the field when the pause ends, so text cleared in the meantime is not searched for.
-const searchLater = useDebounceFn(() => {
-  view.search = typed.value
-}, SEARCH_DELAY_MS)
-
-function onType(event: Event): void {
-  typed.value = (event.target as HTMLInputElement).value
-  void searchLater()
-}
-
-// Back/forward and "Clear filters" change the search from outside. The view trims it, so text that
-// differs only by its outer spaces is the user's own typing coming back and is left alone.
-watch(
-  () => view.search,
-  (search) => {
-    if (search !== typed.value.trim()) typed.value = search
-  },
-)
-
-function clearSearch(): void {
-  typed.value = ''
-  view.search = ''
-  searchField.value?.focus()
-}
-
-// Whichever "Clear filters" was pressed, the toolbar's or the empty list's, typing still waiting out
-// the pause goes with the filters: the pause then ends on an empty field and searches for nothing.
-view.onFiltersCleared(() => {
-  typed.value = ''
-})
 
 const statusOptions = computed(() =>
   STATUS_FILTERS.map((status) => ({
@@ -78,53 +39,24 @@ const sortItems = computed(() =>
 <template>
   <!--
     A grid of rows that are always there, so the toolbar keeps its height whatever is set: on a phone
-    search / status / sorting, on a wider screen search and sorting / status. "Clear filters" takes the
-    free end of the last row and never adds one.
+    status / sorting, on a wider screen status, then sorting at the far end, on one row. "Clear filters"
+    takes the free end of the last row and never adds one. The search lives in the header.
   -->
-  <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
-    <div class="relative col-span-2 col-start-1 row-start-1 min-w-0 md:col-span-1">
-      <Search
-        class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-text-muted"
-        aria-hidden="true"
-      />
-      <input
-        ref="searchField"
-        type="search"
-        :value="typed"
-        :aria-label="t('toolbar.searchLabel')"
-        :placeholder="t('toolbar.searchPlaceholder')"
-        autocomplete="off"
-        class="h-9 w-full rounded-control border border-border bg-surface px-9 text-sm text-text placeholder:text-text-muted [&::-webkit-search-cancel-button]:appearance-none"
-        :class="FOCUS_RING_CLASS"
-        @input="onType"
-      />
-      <button
-        v-if="typed !== ''"
-        type="button"
-        :aria-label="t('toolbar.clearSearch')"
-        :title="t('toolbar.clearSearch')"
-        class="absolute top-1 right-1 size-7 rounded-item text-text-muted hover:bg-surface-muted hover:text-text"
-        :class="CONTROL_CLASS"
-        @click="clearSearch"
-      >
-        <X class="size-4" aria-hidden="true" />
-      </button>
-    </div>
-
+  <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 md:grid-cols-[auto_minmax(min-content,1fr)_minmax(0,auto)]">
     <!-- Below the wide layout the four statuses share the full width; on a phone with tighter segments, so no label breaks in two. -->
     <SegmentedControl
       v-model="view.status"
       :options="statusOptions"
       :label="t('toolbar.statusLabel')"
-      class="col-span-2 col-start-1 row-start-2 justify-self-start max-md:w-full md:col-span-1 [&>button]:flex-auto [&>button]:whitespace-nowrap max-sm:[&>button]:px-1.5"
+      class="col-span-2 col-start-1 row-start-1 justify-self-start max-md:w-full md:col-span-1 [&>button]:flex-auto [&>button]:whitespace-nowrap max-sm:[&>button]:px-1.5"
     />
 
     <DropdownMenu :items="sortItems" :checked="view.ordering" @select="view.ordering = $event">
       <template #trigger>
-        <!-- A long name is shortened on a phone to leave room for "Clear filters"; the accessible name stays whole. -->
+        <!-- A long name is shortened to leave room for "Clear filters"; the accessible name stays whole. -->
         <Button
           :aria-label="t('toolbar.sortBy', { sort: sortLabel })"
-          class="col-start-1 row-start-3 max-w-full justify-self-start md:col-start-2 md:row-start-1 md:justify-self-end"
+          class="col-start-1 row-start-2 max-w-full justify-self-start md:col-start-3 md:row-start-1 md:justify-self-end"
         >
           <ArrowUpDown class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
           <span class="truncate">{{ sortLabel }}</span>
@@ -135,7 +67,7 @@ const sortItems = computed(() =>
     <Button
       v-if="view.isFiltered"
       variant="ghost"
-      class="col-start-2 row-start-3 justify-self-end md:row-start-2"
+      class="col-start-2 row-start-2 justify-self-end whitespace-nowrap md:row-start-1"
       @click="view.clearFilters()"
     >
       {{ t('toolbar.clearFilters') }}
