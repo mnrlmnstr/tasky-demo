@@ -20,6 +20,7 @@ const uk: typeof en = {
       created: 'Задачу створено',
       updated: 'Задачу оновлено',
       statusChanged: 'Статус змінено',
+      priorityChanged: 'Пріоритет змінено',
     },
     action: 'Скасувати',
     dismiss: 'Закрити',
@@ -36,6 +37,7 @@ const uk: typeof en = {
   actions: {
     listLabel: 'Задачі',
     status: 'Статус: {status}. Змінити статус',
+    priority: 'Пріоритет: {priority}. Змінити пріоритет',
     delete: 'Видалити задачу',
     deleteTitle: 'Видалити «{title}»?',
     deleteDescription: 'Відновити її буде неможливо.',

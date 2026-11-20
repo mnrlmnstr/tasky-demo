@@ -1,10 +1,10 @@
 import { computed, inject, onBeforeUnmount, onUnmounted, ref, watch, type Ref } from 'vue'
 
-import { deleteTask, updateTask, type TaskRead, type TaskStatus } from '../../api/generated/client'
+import { deleteTask, updateTask, type TaskPriority, type TaskRead, type TaskStatus } from '../../api/generated/client'
 import { failureKind } from '../../api/http'
 import { tasksChanged } from '../../stores/taskChanges'
 import { useUndoStore } from '../../stores/undo'
-import { offerUndoOfStatusChange } from '../../stores/undoActions'
+import { offerUndoOfPriorityChange, offerUndoOfStatusChange } from '../../stores/undoActions'
 import { FOCUS_TASK_LIST } from './listFocus'
 
 /*
@@ -81,6 +81,47 @@ export function useStatusChange(task: () => TaskRead) {
   }
 
   return { pickedStatus, isChangingStatus, status, changeStatus }
+}
+
+/**
+ * A priority picked from the menu: shown at once, ahead of the list or the board, whose next answer takes
+ * over. Its menu offers nothing while the task has a request on its way, so one is sent at a time.
+ */
+export function usePriorityChange(task: () => TaskRead) {
+  const undo = useUndoStore()
+
+  const pickedPriority = ref<TaskPriority | null>(null)
+  const isChangingPriority = ref(false)
+
+  const priority = computed(() => pickedPriority.value ?? task().priority)
+
+  watch(task, () => {
+    if (!isChangingPriority.value) pickedPriority.value = null
+  })
+
+  async function changePriority(next: TaskPriority): Promise<void> {
+    if (next === priority.value) return
+    const id = task().id
+    const previous = priority.value
+    pickedPriority.value = next
+    isChangingPriority.value = true
+    try {
+      const after = await updateTask(id, { priority: next })
+      // A new priority can sort the task elsewhere.
+      tasksChanged()
+      // Only the priority is put back, also when the copy shown had other fields out of date.
+      offerUndoOfPriorityChange({ ...after, priority: previous }, after)
+    } catch (failure) {
+      pickedPriority.value = previous
+      const kind = failureKind(failure)
+      if (kind === 'not_found') tasksChanged({ deleted: id })
+      undo.notifyError(kind)
+    } finally {
+      isChangingPriority.value = false
+    }
+  }
+
+  return { pickedPriority, isChangingPriority, priority, changePriority }
 }
 
 // Whether the focus is nowhere, or in a menu or dialog: one of this element's own, when it was just acted on.

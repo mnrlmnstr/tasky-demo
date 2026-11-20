@@ -7,12 +7,12 @@ import type { TaskRead, TaskStatus } from '../../../api/generated/client'
 import { useBoardStore } from '../../../stores/board'
 import { useSettingsStore } from '../../../stores/settings'
 import { useTaskFormStore } from '../../../stores/taskForm'
-import Badge from '../../ui/Badge.vue'
 import { FOCUS_RING_CLASS } from '../../ui/control'
 import IconButton from '../../ui/IconButton.vue'
-import { useFocusOnLeave, useTaskDelete } from '../taskActions'
+import PriorityMenu from '../PriorityMenu.vue'
+import { useFocusOnLeave, usePriorityChange, useTaskDelete } from '../taskActions'
 import TaskDeleteConfirm from '../TaskDeleteConfirm.vue'
-import { PRIORITY_TONES, useTaskDates } from '../taskDisplay'
+import { useTaskDates } from '../taskDisplay'
 import TaskStatusMenu from '../TaskStatusMenu.vue'
 
 const { task } = defineProps<{ task: TaskRead }>()
@@ -29,11 +29,12 @@ const settings = useSettingsStore()
 const board = useBoardStore()
 
 const isMoving = computed(() => board.isMoving(task.id))
+const { isChangingPriority, priority, changePriority } = usePriorityChange(() => task)
 const { isConfirmingDelete, isDeleting, askToDelete, deleteConfirmed } = useTaskDelete(
   () => task,
-  () => isMoving.value,
+  () => isMoving.value || isChangingPriority.value,
 )
-const isBusy = computed(() => isMoving.value || isDeleting.value)
+const isBusy = computed(() => isMoving.value || isChangingPriority.value || isDeleting.value)
 
 // The card is named by its title, the text of its edit button; the button's own name says it edits.
 const titleId = useId()
@@ -115,7 +116,7 @@ useFocusOnLeave(useTemplateRef<HTMLElement>('card'), () => isBusy.value)
       {{ description }}
     </p>
     <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-5 text-text-muted">
-      <Badge :tone="PRIORITY_TONES[task.priority]">{{ t(`task.priority.${task.priority}`) }}</Badge>
+      <PriorityMenu :priority="priority" :busy="isChangingPriority" :disabled="isBusy" @select="changePriority" />
       <span v-if="deadline !== null" data-testid="task-deadline" :class="{ 'text-danger-text': isOverdue }">
         {{ t(isOverdue ? 'task.dueOverdue' : 'task.due', { date: deadline }) }}
       </span>

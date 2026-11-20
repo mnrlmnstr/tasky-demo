@@ -13,6 +13,7 @@ import {
   type TaskUpdate,
 } from '../../api/generated/client'
 import { ApiError, failureKind, type FieldError } from '../../api/http'
+import { TASK_PRIORITIES } from '../../api/taskPriorities'
 import { TASK_STATUSES } from '../../api/taskStatuses'
 import { useClock } from '../../i18n/clock'
 import { errorMessageKey } from '../../i18n/errorMessages'
@@ -34,8 +35,6 @@ import {
   TITLE_MAX_LENGTH,
   type FormField,
 } from './taskFormErrors'
-
-const PRIORITIES: TaskPriority[] = ['low', 'medium', 'high']
 
 /** What the fields hold. */
 interface Values {
@@ -257,7 +256,7 @@ const statusOptions = computed(() =>
   TASK_STATUSES.map((status) => ({ value: status, label: t(`task.status.${status}`) })),
 )
 const priorityOptions = computed(() =>
-  PRIORITIES.map((priority) => ({ value: priority, label: t(`task.priority.${priority}`) })),
+  TASK_PRIORITIES.map((priority) => ({ value: priority, label: t(`task.priority.${priority}`) })),
 )
 
 const LABEL_CLASS = 'text-sm text-text-muted'

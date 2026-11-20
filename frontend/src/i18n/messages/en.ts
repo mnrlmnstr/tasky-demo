@@ -17,6 +17,7 @@ export default {
       created: 'Task created',
       updated: 'Task updated',
       statusChanged: 'Status changed',
+      priorityChanged: 'Priority changed',
     },
     action: 'Undo',
     dismiss: 'Dismiss',
@@ -33,6 +34,7 @@ export default {
   actions: {
     listLabel: 'Tasks',
     status: 'Status: {status}. Change status',
+    priority: 'Priority: {priority}. Change priority',
     delete: 'Delete task',
     deleteTitle: 'Delete «{title}»?',
     deleteDescription: 'This cannot be undone.',

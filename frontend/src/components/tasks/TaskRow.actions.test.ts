@@ -140,7 +140,7 @@ describe('the delete control of a row', () => {
     const button = row.get('button[aria-label="Видалити задачу"]')
     expect(button.find('svg.lucide-trash-2').exists()).toBe(true)
     expect(button.attributes('aria-disabled')).toBeUndefined()
-    expect(row.get('[data-tone]').element.nextElementSibling).toBe(button.element)
+    expect(row.get('[data-testid="task-priority"]').element.nextElementSibling).toBe(button.element)
   })
 
   it('asks in Ukrainian when the language is Ukrainian', async () => {
