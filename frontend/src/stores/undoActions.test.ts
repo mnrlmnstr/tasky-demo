@@ -7,7 +7,7 @@ import { requestUrl } from '../test/requestUrl'
 import { pageOf, task } from '../test/tasksApi'
 import { useTasksStore } from './tasks'
 import { useUndoStore } from './undo'
-import { offerUndoOfCreate, offerUndoOfEdit, offerUndoOfStatusChange } from './undoActions'
+import { offerUndoOfCreate, offerUndoOfEdit, offerUndoOfMove, offerUndoOfStatusChange } from './undoActions'
 
 interface SentRequest {
   method: string
@@ -199,6 +199,35 @@ describe('undo of a status change', () => {
       { method: 'PATCH', path: '/api/v1/tasks/task-1', body: { status: 'in_progress' } },
     ])
     expect(tasks.items).toEqual([before])
+  })
+})
+
+describe('undo of a move', () => {
+  it('offers the undo under the "moved" label', () => {
+    fakeServer([])
+    const before = task('Write report', { id: 'task-1', position: 2 })
+
+    offerUndoOfMove(before, { ...before, position: 0.5 })
+
+    expect(useUndoStore().label).toBe('moved')
+  })
+
+  it('sends back the previous status and position', async () => {
+    const before = task('Write report', { id: 'task-1', status: 'todo', position: 2 })
+    const after: TaskRead = { ...before, status: 'done', position: -1 }
+    const server = fakeServer([after], () => {
+      server.rows[0] = before
+      return json(before)
+    })
+    await openList()
+    offerUndoOfMove(before, after)
+
+    await useUndoStore().run()
+    await flushPromises()
+
+    expect(server.changes).toEqual([
+      { method: 'PATCH', path: '/api/v1/tasks/task-1', body: { status: 'todo', position: 2 } },
+    ])
   })
 })
 

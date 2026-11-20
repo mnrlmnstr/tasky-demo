@@ -63,18 +63,22 @@ describe('one signal for changed tasks', () => {
     const { page } = await openApp('/?view=board')
     expect(listRequests()).toEqual({ list: 0, board: 3 })
 
+    // The drag shows the custom order, which the columns load once more.
     page.findAll('[data-testid="board-card"]')[1].element.dispatchEvent(dragEvent('dragstart'))
     await settle()
-    page.get('[data-testid="board-column"][data-status="done"]').element.dispatchEvent(dragEvent('drop'))
-    await settle()
     expect(listRequests()).toEqual({ list: 0, board: 6 })
-
-    await useUndoStore().run()
+    const done = page.get('[data-testid="board-column"][data-status="done"]').element
+    done.dispatchEvent(dragEvent('dragover'))
+    done.dispatchEvent(dragEvent('drop'))
     await settle()
     expect(listRequests()).toEqual({ list: 0, board: 9 })
 
+    await useUndoStore().run()
+    await settle()
+    expect(listRequests()).toEqual({ list: 0, board: 12 })
+
     await switchTo(page, 'List')
-    expect(listRequests()).toEqual({ list: 1, board: 9 })
+    expect(listRequests()).toEqual({ list: 1, board: 12 })
   })
 
   it('loads the list once for a change made in it, and not the board', async () => {

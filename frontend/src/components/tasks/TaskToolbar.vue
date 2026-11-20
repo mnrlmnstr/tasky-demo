@@ -20,8 +20,9 @@ const SORT_MESSAGES: Record<TaskOrdering, string> = {
   created_at: 'toolbar.sort.oldest',
   deadline: 'toolbar.sort.deadlineSoonest',
   '-deadline': 'toolbar.sort.deadlineLatest',
+  position: 'toolbar.sort.custom',
 }
-const SORT_ORDER: TaskOrdering[] = ['-created_at', 'created_at', 'deadline', '-deadline']
+const SORT_ORDER: TaskOrdering[] = ['-created_at', 'created_at', 'deadline', '-deadline', 'position']
 
 const { t, locale } = useI18n()
 const view = useListViewStore()

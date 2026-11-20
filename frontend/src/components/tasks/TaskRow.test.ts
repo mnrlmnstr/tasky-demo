@@ -23,6 +23,7 @@ function task(overrides: Partial<TaskRead> = {}): TaskRead {
     deadline: null,
     created_at: '2026-03-05T09:00:00Z',
     updated_at: '2026-03-05T09:00:00Z',
+    position: 0,
     ...overrides,
   }
 }

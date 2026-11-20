@@ -47,7 +47,7 @@ interface Values {
 }
 
 /** The same as the API takes it: every field the form shows, an empty one as `null`. */
-type Payload = Required<TaskUpdate>
+type Payload = Required<Omit<TaskUpdate, 'position'>>
 
 const { t } = useI18n()
 const form = useTaskFormStore()

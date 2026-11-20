@@ -12,6 +12,7 @@ import IconButton from '../../ui/IconButton.vue'
 import PriorityMenu from '../PriorityMenu.vue'
 import { useFocusOnLeave, usePriorityChange, useTaskDelete } from '../taskActions'
 import TaskDeleteConfirm from '../TaskDeleteConfirm.vue'
+import TaskMoveMenu from '../TaskMoveMenu.vue'
 import { useTaskDates } from '../taskDisplay'
 import TaskStatusMenu from '../TaskStatusMenu.vue'
 
@@ -22,6 +23,8 @@ const emit = defineEmits<{
   dragend: []
   /** A status was picked from the card's menu: the keyboard way of dragging it. */
   move: [status: TaskStatus]
+  /** Move up or Move down was picked: the keyboard way of dragging it to another place. */
+  reorder: [delta: -1 | 1]
 }>()
 
 const { t } = useI18n()
@@ -98,6 +101,15 @@ useFocusOnLeave(useTemplateRef<HTMLElement>('card'), () => isBusy.value)
           <span :id="titleId">{{ task.title }}</span>
         </button>
       </p>
+      <span class="card-action -my-1 -mr-2 flex shrink-0 transition-opacity">
+        <TaskMoveMenu
+          :title="task.title"
+          :can-move-up="board.canMoveBy(task, -1)"
+          :can-move-down="board.canMoveBy(task, 1)"
+          :busy="isBusy"
+          @move="emit('reorder', $event)"
+        />
+      </span>
       <IconButton
         :label="t('actions.delete')"
         :aria-disabled="isBusy ? 'true' : undefined"
@@ -125,7 +137,7 @@ useFocusOnLeave(useTemplateRef<HTMLElement>('card'), () => isBusy.value)
 </template>
 
 <style scoped>
-/* As on a list row: with a pointer that hovers, the delete button waits for the card to be pointed at or focused. */
+/* As on a list row: with a pointer that hovers, the move and delete buttons wait for the card to be pointed at or focused. */
 @media (hover: hover) and (min-width: 40rem) {
   .card-action {
     opacity: 0;
