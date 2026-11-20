@@ -106,15 +106,16 @@ describe('SettingsDialog', () => {
     expect(dialogTitle()).toBe('Settings')
   })
 
-  it('offers theme, tasks per page and language, in that order, each with a visible label', async () => {
+  it('offers theme, tasks per page, language and density, in that order, each with a visible label', async () => {
     await mountSettings()
 
     expect(groups().map((candidate) => candidate.getAttribute('aria-label'))).toEqual([
       'Theme',
       'Tasks per page',
       'Language',
+      'Density',
     ])
-    expect(visibleLabels()).toEqual(['Theme', 'Tasks per page', 'Language'])
+    expect(visibleLabels()).toEqual(['Theme', 'Tasks per page', 'Language', 'Density'])
   })
 
   it('offers the choices of each setting', async () => {
@@ -188,7 +189,7 @@ describe('SettingsDialog', () => {
     await choose('Language', 'Українська')
 
     expect(dialogTitle()).toBe('Налаштування')
-    expect(visibleLabels()).toEqual(['Тема', 'Задач на сторінці', 'Мова'])
+    expect(visibleLabels()).toEqual(['Тема', 'Задач на сторінці', 'Мова', 'Щільність'])
     expect(segmentLabels('Тема')).toEqual(['Світла', 'Темна', 'Системна'])
     expect(getDialog().querySelector('button[aria-label="Закрити"]')).not.toBeNull()
     expect(document.documentElement.lang).toBe('uk')

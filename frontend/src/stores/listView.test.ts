@@ -601,7 +601,7 @@ describe('remembering the view', () => {
     view.ordering = 'deadline'
     view.page = 3
 
-    expect(savedView()).toEqual({ ...NO_DEADLINE, search: 'report', status: 'done', ordering: 'deadline' })
+    expect(savedView()).toEqual({ ...NO_DEADLINE, search: 'report', status: 'done', ordering: 'deadline', view: 'list' })
   })
 
   it('saves the cleared view', () => {
@@ -610,7 +610,7 @@ describe('remembering the view', () => {
 
     view.clearFilters()
 
-    expect(savedView()).toEqual({ ...NO_DEADLINE, search: '', status: 'all', ordering: 'deadline' })
+    expect(savedView()).toEqual({ ...NO_DEADLINE, search: '', status: 'all', ordering: 'deadline', view: 'list' })
   })
 
   it('saves the view a shared address opened', () => {
@@ -619,7 +619,7 @@ describe('remembering the view', () => {
 
     loadStore()
 
-    expect(savedView()).toEqual({ ...NO_DEADLINE, search: '', status: 'done', ordering: '-created_at' })
+    expect(savedView()).toEqual({ ...NO_DEADLINE, search: '', status: 'done', ordering: '-created_at', view: 'list' })
   })
 
   it('saves the view that back returns to', async () => {
@@ -629,7 +629,7 @@ describe('remembering the view', () => {
 
     await goBack()
 
-    expect(savedView()).toEqual({ ...NO_DEADLINE, search: '', status: 'all', ordering: '-created_at' })
+    expect(savedView()).toEqual({ ...NO_DEADLINE, search: '', status: 'all', ordering: '-created_at', view: 'list' })
   })
 
   it('restores the saved view on a bare address, in the address bar too, without a history entry', async () => {

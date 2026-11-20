@@ -304,12 +304,12 @@ describe('changing the theme', () => {
 })
 
 describe('saving', () => {
-  it('stores all three settings as one object when the theme changes', () => {
+  it('stores all the settings as one object when the theme changes', () => {
     const settings = loadStore()
 
     settings.theme = 'dark'
 
-    expect(storedSettings()).toEqual({ theme: 'dark', pageSize: 20, locale: 'en' })
+    expect(storedSettings()).toEqual({ theme: 'dark', pageSize: 20, locale: 'en', density: 'comfortable', showDescriptions: false })
   })
 
   it('stores a changed page size', () => {
@@ -317,7 +317,7 @@ describe('saving', () => {
 
     settings.pageSize = 50
 
-    expect(storedSettings()).toEqual({ theme: 'system', pageSize: 50, locale: 'en' })
+    expect(storedSettings()).toEqual({ theme: 'system', pageSize: 50, locale: 'en', density: 'comfortable', showDescriptions: false })
   })
 
   it('stores a changed language', () => {
@@ -325,7 +325,7 @@ describe('saving', () => {
 
     settings.locale = 'uk'
 
-    expect(storedSettings()).toEqual({ theme: 'system', pageSize: 20, locale: 'uk' })
+    expect(storedSettings()).toEqual({ theme: 'system', pageSize: 20, locale: 'uk', density: 'comfortable', showDescriptions: false })
   })
 
   it('still applies a change when local storage refuses to write', () => {

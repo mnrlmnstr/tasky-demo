@@ -2,10 +2,11 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { LOCALES, PAGE_SIZES, THEMES, useSettingsStore } from '../../stores/settings'
+import { DENSITIES, LOCALES, PAGE_SIZES, THEMES, useSettingsStore } from '../../stores/settings'
 import { oneOf } from '../../stores/storage'
 import Dialog from '../ui/Dialog.vue'
 import SegmentedControl from '../ui/SegmentedControl.vue'
+import Switch from '../ui/Switch.vue'
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -21,7 +22,11 @@ const languageOptions = computed(() =>
   LOCALES.map((locale) => ({ value: locale, label: t(`settings.languages.${locale}`) })),
 )
 
-const pageSizeOptions = PAGE_SIZES.map((size) => ({ value: String(size), label: String(size) }))
+const densityOptions = computed(() =>
+  DENSITIES.map((density) => ({ value: density, label: t(`settings.densities.${density}`) })),
+)
+
+const pageSizeOptions =PAGE_SIZES.map((size) => ({ value: String(size), label: String(size) }))
 
 // The store keeps the page size as a number; the segmented control speaks strings.
 const pageSize = computed({
@@ -59,6 +64,13 @@ const LABEL_CLASS = 'text-sm text-text-muted'
           :label="t('settings.language')"
         />
       </div>
+      <div class="flex flex-col items-start gap-1.5">
+        <span data-testid="setting-label" :class="LABEL_CLASS" aria-hidden="true">
+          {{ t('settings.density') }}
+        </span>
+        <SegmentedControl v-model="settings.density" :options="densityOptions" :label="t('settings.density')" />
+      </div>
+      <Switch v-model="settings.showDescriptions" :label="t('settings.showDescriptions')" />
     </div>
   </Dialog>
 </template>
