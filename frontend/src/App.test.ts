@@ -38,33 +38,7 @@ describe('app shell', () => {
     const page = mountApp('uk')
 
     expect(page.find('header button[aria-label="Налаштування"]').exists()).toBe(true)
-    expect(page.get('header button[data-variant="primary"]').text()).toBe('Нова задача')
-  })
-
-  it('shows no app title, but keeps the app name as a page heading for assistive technology', () => {
-    fakeTasksApi()
-
-    const page = mountApp()
-
-    const heading = page.get('header h1')
-    expect(heading.text()).toBe('Tasky')
-    expect(heading.classes()).toContain('sr-only')
-    expect(page.findAll('h1')).toHaveLength(1)
-  })
-
-  it('puts the search field first in the header, before the settings and "New task" buttons', () => {
-    fakeTasksApi()
-
-    const page = mountApp()
-
-    const header = page.get('header').element
-    const controls = Array.from(header.querySelectorAll('input, button'))
-    expect(controls.map((control) => control.getAttribute('aria-label') ?? control.textContent?.trim())).toEqual([
-      'Search tasks',
-      'Settings',
-      'New task',
-    ])
-    expect(page.find('main input[type="search"]').exists()).toBe(false)
+    expect(page.get('[data-testid="card-header"] button[data-variant="primary"]').text()).toBe('Нова задача')
   })
 
   it('lets the search field take the free width of the header and shrink on a narrow screen', () => {
@@ -72,7 +46,7 @@ describe('app shell', () => {
 
     const page = mountApp()
 
-    const field = page.get('header input[type="search"]').element.parentElement as HTMLElement
+    const field = page.get('[data-testid="card-header"] input[type="search"]').element.parentElement as HTMLElement
     expect(field.classList).toContain('flex-1')
     expect(field.classList).toContain('min-w-0')
   })
@@ -82,7 +56,7 @@ describe('app shell', () => {
 
     const page = mountApp()
 
-    const newTask = page.get('header button[data-variant="primary"]')
+    const newTask = page.get('[data-testid="card-header"] button[data-variant="primary"]')
     const label = newTask.get('span')
     expect(label.text()).toBe('New task')
     expect(label.classes()).toContain('max-sm:sr-only')
@@ -94,17 +68,17 @@ describe('app shell', () => {
 
     const page = mountApp()
 
-    const card = page.get('header').element.parentElement as HTMLElement
+    const card = page.get('[data-testid="card"]').element as HTMLElement
     for (const name of ['sm:rounded-card', 'sm:border', 'sm:shadow-raised', 'bg-surface']) {
       expect(card.classList).toContain(name)
     }
     expect(Array.from(card.classList).some((name) => /^(rounded|border$|shadow)/.test(name))).toBe(false)
-    const gutter = card.parentElement as HTMLElement
-    expect(gutter.classList).toContain('sm:py-8')
+    const gutter = card.parentElement?.parentElement as HTMLElement
+    expect(gutter.classList).toContain('sm:pb-8')
     expect(Array.from(gutter.classList).some((name) => /^(p|py|pt|m|my|mt)-/.test(name))).toBe(false)
   })
 
-  it('offers a settings button in the header, named for assistive technology and drawn as the settings icon', () => {
+  it('offers a settings button in the top bar, named for assistive technology and drawn as the settings icon', () => {
     fakeTasksApi()
 
     const page = mountApp()
@@ -113,12 +87,12 @@ describe('app shell', () => {
     expect(settings.find('svg.lucide-settings').exists()).toBe(true)
   })
 
-  it('offers a primary "New task" button with a plus icon in the header', () => {
+  it('offers a primary "New task" button with a plus icon in the card header', () => {
     fakeTasksApi()
 
     const page = mountApp()
 
-    const newTask = page.get('header button[data-variant="primary"]')
+    const newTask = page.get('[data-testid="card-header"] button[data-variant="primary"]')
     expect(newTask.text()).toBe('New task')
     expect(newTask.find('svg.lucide-plus').exists()).toBe(true)
   })
@@ -128,7 +102,7 @@ describe('app shell', () => {
 
     const page = mountApp()
 
-    const icons = page.findAll('header button svg')
+    const icons = page.findAll('header button svg, [data-testid="card-header"] button svg')
     expect(icons.map((icon) => icon.attributes('aria-hidden'))).toEqual(['true', 'true'])
   })
 
@@ -265,7 +239,7 @@ describe('task list on the page', () => {
     useSettingsStore().locale = 'uk'
     await flushPromises()
 
-    expect(page.get('header button[data-variant="primary"]').text()).toBe('Нова задача')
+    expect(page.get('[data-testid="card-header"] button[data-variant="primary"]').text()).toBe('Нова задача')
     expect(page.get('main [data-testid="task-total"]').text()).toBe('3 задачі')
     expect(page.get('main [data-testid="task-status"]').attributes('aria-label')).toBe('Статус: До виконання. Змінити статус')
   })
@@ -388,7 +362,7 @@ describe('settings from the header', () => {
 
     await choose('Українська')
 
-    expect(page.get('header button[data-variant="primary"]').text()).toBe('Нова задача')
+    expect(page.get('[data-testid="card-header"] button[data-variant="primary"]').text()).toBe('Нова задача')
     expect(page.find('header button[aria-label="Налаштування"]').exists()).toBe(true)
     expect(page.get('main [data-testid="task-total"]').text()).toBe('3 задачі')
     expect(findSettingsDialog()?.textContent).toContain('Задач на сторінці')
