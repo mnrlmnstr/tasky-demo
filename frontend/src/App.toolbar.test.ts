@@ -141,7 +141,7 @@ describe('toolbar on the page', () => {
     const api = fakeTasksApi()
     const page = await openApp()
 
-    await chooseSort(page, 'Deadline: soonest first')
+    await chooseSort(page, 'Deadline: soonest')
 
     expect(api.queries[1]).toEqual({ ordering: 'deadline', page: '1', page_size: '20' })
     expect(location.search).toBe('?ordering=deadline')
@@ -153,7 +153,7 @@ describe('toolbar on the page', () => {
 
     await search(page, 'report')
     await chooseStatus(page, 'To do')
-    await chooseSort(page, 'Deadline: latest first')
+    await chooseSort(page, 'Deadline: latest')
 
     expect(api.queries.at(-1)).toEqual({
       ordering: '-deadline',
@@ -189,7 +189,7 @@ describe('toolbar on the page', () => {
     ])
     expect(searchBox(page).element.value).toBe('report')
     expect(pressedStatus(page)).toBe('To do')
-    expect(sortTrigger(page).text()).toBe('Deadline: soonest first')
+    expect(sortTrigger(page).text()).toBe('Deadline: soonest')
   })
 
   it('shows the same filters when the app is opened again after the tab was closed', async () => {
@@ -197,7 +197,7 @@ describe('toolbar on the page', () => {
     const first = await openApp()
     await search(first, 'report')
     await chooseStatus(first, 'Done')
-    await chooseSort(first, 'Oldest first')
+    await chooseSort(first, 'Oldest')
     closeApp()
     const api = fakeTasksApi()
 
@@ -208,7 +208,7 @@ describe('toolbar on the page', () => {
     ])
     expect(searchBox(page).element.value).toBe('report')
     expect(pressedStatus(page)).toBe('Done')
-    expect(sortTrigger(page).text()).toBe('Oldest first')
+    expect(sortTrigger(page).text()).toBe('Oldest')
   })
 
   it('follows the address when the user goes back', async () => {
