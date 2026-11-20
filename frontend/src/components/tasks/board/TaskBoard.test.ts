@@ -8,7 +8,7 @@ import { CLOCK, type Clock } from '../../../i18n/clock'
 import { useBoardStore } from '../../../stores/board'
 import { useSettingsStore, type Locale } from '../../../stores/settings'
 import { useTaskFormStore } from '../../../stores/taskForm'
-import { useTasksStore } from '../../../stores/tasks'
+import { tasksChanged } from '../../../stores/taskChanges'
 import { useUndoStore } from '../../../stores/undo'
 import { appPlugins } from '../../../test/appPlugins'
 import { fakeTasksApi, pageOf, task } from '../../../test/tasksApi'
@@ -276,6 +276,21 @@ describe('a card', () => {
 
     expect(card(board, 'Call').attributes('draggable')).toBe('true')
   })
+
+  it('cannot be dragged while it is moving', async () => {
+    const { board, server } = await openBoard(rows())
+    server.hold()
+    await pickStatus(board, 'Call', 'Done')
+
+    expect(card(board, 'Call').attributes('draggable')).toBe('false')
+  })
+
+  it('is named by its title', async () => {
+    const { board } = await openBoard(rows())
+
+    const named = card(board, 'Call')
+    expect(document.getElementById(named.attributes('aria-labelledby') ?? '')?.textContent.trim()).toBe('Call')
+  })
 })
 
 describe('dragging a card to another column', () => {
@@ -414,6 +429,20 @@ describe('deleting a card', () => {
     expect(cardTitles(board, 'todo')).toEqual(['Write'])
   })
 
+  it('cannot be dragged while it is being deleted', async () => {
+    const { board, server } = await openBoard(rows())
+    server.hold()
+    await card(board, 'Call').get('button[aria-label="Delete task"]').trigger('click')
+    await settle()
+    const dialog = document.body.querySelector('[role="alertdialog"]')
+    Array.from(dialog?.querySelectorAll('button') ?? [])
+      .find((button) => button.textContent?.trim() === 'Delete')
+      ?.click()
+    await settle()
+
+    expect(card(board, 'Call').attributes('draggable')).toBe('false')
+  })
+
   it('cannot be asked for while the card is moving', async () => {
     const { board, server } = await openBoard(rows())
     server.hold()
@@ -427,6 +456,56 @@ describe('deleting a card', () => {
   })
 })
 
+describe('what the board announces', () => {
+  function announcement(board: VueWrapper): string {
+    const regions = board.findAll('[role="status"]')
+    expect(regions).toHaveLength(1)
+    return regions[0].text()
+  }
+
+  it('says it loads, then how many tasks each column holds', async () => {
+    const api = fakeTasksApi()
+    const board = mountBoard()
+    await flushPromises()
+    expect(announcement(board)).toBe('Loading tasks…')
+
+    await api.respondTo(0, pageOf(['Write', 'Call']))
+    await api.respondTo(1, pageOf(['Plan']))
+    await api.respondTo(2, pageOf([]))
+
+    expect(announcement(board)).toBe('To do: 2 tasks; In progress: 1 task; Done: 0 tasks')
+  })
+
+  it('says it updates while the columns reload, and leaves a failure to the column', async () => {
+    const api = fakeTasksApi()
+    const board = mountBoard()
+    await flushPromises()
+    await api.respondTo(0, pageOf(['Write']))
+    await api.respondTo(1, pageOf([]))
+    await api.respondTo(2, pageOf([]))
+
+    tasksChanged()
+    await nextTick()
+    expect(announcement(board)).toBe('Updating tasks…')
+
+    await api.respondTo(3, pageOf(['Write']))
+    await api.respondTo(4, pageOf([]))
+    await api.failWith(5, 500)
+    expect(announcement(board)).toBe('')
+  })
+
+  it('counts in Ukrainian', async () => {
+    const api = fakeTasksApi()
+    const board = mountBoard('uk')
+    await flushPromises()
+    await api.respondTo(0, pageOf(['Write', 'Call']))
+    await api.respondTo(1, pageOf(['Plan']))
+    await api.respondTo(2, pageOf(['A', 'B', 'C', 'D', 'E']))
+
+    expect(announcement(board)).toBe('До виконання: 2 задачі; У роботі: 1 задача; Виконано: 5 задач')
+  })
+})
+
 describe('the board on the page', () => {
   it('stops reloading its columns once it is gone', async () => {
     const { board, server } = await openBoard(rows())
@@ -434,7 +513,7 @@ describe('the board on the page', () => {
 
     board.unmount()
     mounted = undefined
-    useTasksStore().retry()
+    tasksChanged()
     await settle()
 
     expect(server.lists - before).toBe(0)

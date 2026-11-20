@@ -5,7 +5,7 @@ import { ERROR_MESSAGES, errorMessageKey } from './errorMessages'
 import en from './messages/en'
 import uk from './messages/uk'
 
-const KINDS: ApiErrorKind[] = ['network', 'server', 'not_found', 'validation', 'aborted']
+const KINDS: ApiErrorKind[] = ['network', 'server', 'not_found', 'validation', 'aborted', 'client']
 
 function messageAt(messages: typeof en, key: string): unknown {
   return key.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown>)[part], messages)
@@ -18,6 +18,7 @@ describe('error messages', () => {
     ['not_found', 'errors.not_found'],
     ['validation', 'errors.generic'],
     ['aborted', 'errors.generic'],
+    ['client', 'errors.generic'],
   ] as const)('names a message for a "%s" failure', (kind, key) => {
     expect(errorMessageKey(kind)).toBe(key)
   })

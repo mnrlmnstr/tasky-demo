@@ -63,6 +63,8 @@ describe('reading a deadline filter', () => {
     ['a day not in YYYY-MM-DD', '20.11.2026'],
     ['a month out of range', '2026-13-01'],
     ['the last day there is', '9999-12-31'],
+    ['the first day there is, whose midnight is in year 0 in UTC east of it', '0001-01-01'],
+    ['a day of year 0', '0000-06-15'],
     ['an empty value', ''],
   ])('drops %s, keeping the other bound', async (_case, value) => {
     addressIs(`/?deadline_from=${value}&deadline_to=2026-11-24&status=done`)

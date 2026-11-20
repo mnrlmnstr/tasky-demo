@@ -2,19 +2,18 @@ import { computed, inject, onBeforeUnmount, onUnmounted, ref, watch, type Ref } 
 
 import { deleteTask, updateTask, type TaskRead, type TaskStatus } from '../../api/generated/client'
 import { failureKind } from '../../api/http'
-import { useTasksStore } from '../../stores/tasks'
+import { tasksChanged } from '../../stores/taskChanges'
 import { useUndoStore } from '../../stores/undo'
 import { offerUndoOfStatusChange } from '../../stores/undoActions'
 import { FOCUS_TASK_LIST } from './listFocus'
 
 /*
- * What a task's row, card or table row can do with it. After a change the tasks store is asked again,
- * which also reloads the board when it is the one on screen.
+ * What a task's row, card or table row can do with it. A change ends with the tasks-changed signal,
+ * which the list and the board both follow.
  */
 
 /** Deleting, behind a confirmation. Not undoable, which is why it is confirmed first. */
 export function useTaskDelete(task: () => TaskRead, isBusyElsewhere: () => boolean) {
-  const tasks = useTasksStore()
   const undo = useUndoStore()
 
   const isConfirmingDelete = ref(false)
@@ -39,8 +38,7 @@ export function useTaskDelete(task: () => TaskRead, isBusyElsewhere: () => boole
         return
       }
     }
-    tasks.forget(task().id)
-    tasks.retry()
+    tasksChanged({ deleted: task().id })
   }
 
   return { isConfirmingDelete, isDeleting, askToDelete, deleteConfirmed }
@@ -48,7 +46,6 @@ export function useTaskDelete(task: () => TaskRead, isBusyElsewhere: () => boole
 
 /** A status picked from the menu: shown at once, ahead of the list, whose next answer takes over. */
 export function useStatusChange(task: () => TaskRead) {
-  const tasks = useTasksStore()
   const undo = useUndoStore()
 
   const pickedStatus = ref<TaskStatus | null>(null)
@@ -70,13 +67,13 @@ export function useStatusChange(task: () => TaskRead) {
     try {
       const after = await updateTask(before.id, { status: next })
       // The task may no longer match the filter, or sort elsewhere.
-      tasks.retry()
+      tasksChanged()
       offerUndoOfStatusChange(before, after)
     } catch (failure) {
       pickedStatus.value = before.status
       const kind = failureKind(failure)
       // The task is gone, so it should go from the list too.
-      if (kind === 'not_found') tasks.retry()
+      if (kind === 'not_found') tasksChanged({ deleted: before.id })
       undo.notifyError(kind)
     } finally {
       isChangingStatus.value = false

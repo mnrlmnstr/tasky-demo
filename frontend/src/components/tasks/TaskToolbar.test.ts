@@ -281,22 +281,51 @@ describe('clear filters', () => {
     expect(findClearFilters(toolbar)).toBeUndefined()
   })
 
-  // The toolbar is a grid of rows that are always there: a phone has status / sorting, a wider screen
-  // has status and sorting on one row. "Clear filters" takes the free end of the last row, so it never
-  // adds a row and the list below does not move when a filter is set or cleared.
+  // The toolbar is a grid of rows that are always there: status / sorting, and on the board on a wider
+  // screen one row. "Clear filters" takes the free end of the last row, so it never adds a row and the
+  // tasks below do not move when a filter is set or cleared.
+  const rowClasses = (classes: string[]) => classes.filter((name) => /(^|:)row-start-/.test(name)).sort()
+
   it('takes the free end of a row the toolbar always has, instead of a row of its own', async () => {
     history.replaceState(null, '', '/?status=done')
 
     const toolbar = await mountToolbar()
 
-    const rowClasses = (classes: string[]) => classes.filter((name) => /(^|:)row-start-/.test(name)).sort()
     const clear = findClearFilters(toolbar)?.classes() ?? []
-    expect(rowClasses(clear)).toEqual(['md:row-start-1', 'row-start-2'])
+    expect(rowClasses(clear)).toEqual(['row-start-2'])
     // The sorting and the deadline filter share one cell.
     const sortCell = sortTrigger(toolbar).element.parentElement
     expect(sortCell?.querySelector('[data-testid="deadline-filter"]')).not.toBeNull()
-    expect(rowClasses(Array.from(sortCell?.classList ?? []))).toEqual(['md:row-start-1', 'row-start-2'])
+    expect(rowClasses(Array.from(sortCell?.classList ?? []))).toEqual(['row-start-2'])
     expect(rowClasses(toolbar.get('[role="group"][aria-label="Status"]').classes())).toEqual(['row-start-1'])
+  })
+
+  // Next to the status filter, the days of a deadline filter and "Clear filters" ran past the edge of
+  // the list in one row; the board has no status filter, so it keeps to one row on a wider screen.
+  it('keeps to one row on a wider screen only on the board', async () => {
+    history.replaceState(null, '', '/?view=board&search=report')
+
+    const toolbar = await mountToolbar()
+
+    expect(rowClasses(findClearFilters(toolbar)?.classes() ?? [])).toEqual(['md:row-start-1', 'row-start-2'])
+    const sortCell = sortTrigger(toolbar).element.parentElement
+    expect(rowClasses(Array.from(sortCell?.classList ?? []))).toEqual(['md:row-start-1', 'row-start-2'])
+  })
+
+  // At 380px the words of "Clear filters" overlapped the view switch: a phone gets only the icon, and the
+  // days of the deadline filter shorten rather than push the switch over.
+  it('shows only its icon on a phone, keeping its words as its accessible name and tooltip', async () => {
+    history.replaceState(null, '', '/?deadline_from=2026-11-20&deadline_to=2026-11-24')
+
+    const toolbar = await mountToolbar()
+
+    const clear = findClearFilters(toolbar)
+    expect(clear?.get('span').classes()).toContain('max-sm:sr-only')
+    expect(clear?.get('svg').classes()).toContain('sm:hidden')
+    expect(clear?.attributes('title')).toBe('Clear filters')
+    const days = toolbar.get('[data-testid="deadline-filter"]')
+    expect(days.classes()).toContain('max-sm:min-w-0')
+    expect(days.get('span').classes()).toContain('max-sm:truncate')
   })
 
   it('leaves room for itself by shortening a long sorting name, which the button still names in full', async () => {
@@ -331,10 +360,10 @@ describe('clear filters', () => {
     expect(sortTrigger(toolbar).attributes('title')).toBe('Sort: Oldest first')
   })
 
-  // On a wider screen status, "Clear filters" and the sorting share one row: the sorting's column may
+  // On the board on a wider screen "Clear filters" and the sorting share one row: the sorting's column may
   // shrink, the label of "Clear filters" may not, so a long Ukrainian label stays on one line.
   it('keeps its label on one line and lets the sorting give way on a shared row', async () => {
-    history.replaceState(null, '', '/?status=done&ordering=-deadline')
+    history.replaceState(null, '', '/?view=board&search=report&ordering=-deadline')
 
     const toolbar = await mountToolbar('uk')
 

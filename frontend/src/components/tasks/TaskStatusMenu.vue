@@ -5,7 +5,8 @@ import { useI18n } from 'vue-i18n'
 import type { TaskStatus } from '../../api/generated/client'
 import { CONTROL_CLASS } from '../ui/control'
 import DropdownMenu from '../ui/DropdownMenu.vue'
-import { STATUS_ICONS, STATUS_ORDER } from './taskDisplay'
+import { TASK_STATUSES } from '../../api/taskStatuses'
+import { STATUS_ICONS } from './taskDisplay'
 
 const { status, busy = false, disabled = false } = defineProps<{
   /** The status the trigger shows and the menu marks as current. */
@@ -23,7 +24,7 @@ const { t } = useI18n()
 const icon = computed(() => STATUS_ICONS[status])
 const name = computed(() => t('actions.status', { status: t(`task.status.${status}`) }))
 const items = computed(() =>
-  STATUS_ORDER.map((value) => ({
+  TASK_STATUSES.map((value) => ({
     value,
     label: t(`task.status.${value}`),
     icon: STATUS_ICONS[value].icon,

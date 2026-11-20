@@ -10,7 +10,7 @@ const uk: typeof en = {
     newTask: 'Нова задача',
   },
   errors: {
-    network: 'Не вдалося зв’язатися із сервером. Перевірте з’єднання і спробуйте ще раз.',
+    network: 'Не вдалося зв’язатися із сервером. Перевірте з’єднання й спробуйте ще раз.',
     server: 'На сервері сталася помилка. Спробуйте ще раз.',
     not_found: 'Цієї задачі вже немає.',
     generic: 'Щось пішло не так. Спробуйте ще раз.',
@@ -56,6 +56,7 @@ const uk: typeof en = {
     noDeadline: 'Без дедлайну',
     overdue: 'Прострочено',
     due: 'До {date}',
+    dueOverdue: 'До {date} · Прострочено',
     created: 'Створено {date}',
   },
   toolbar: {
@@ -126,6 +127,8 @@ const uk: typeof en = {
     shown: 'Показано {shown} з {total}',
     empty: 'Задач немає',
     loading: 'Завантажуємо задачі…',
+    reloading: 'Оновлюємо задачі…',
+    counts: '{todo}; {inProgress}; {done}',
     retry: 'Спробувати ще раз',
   },
   table: {
@@ -136,7 +139,7 @@ const uk: typeof en = {
     created: 'Створено',
     actions: 'Дії',
     rowActions: 'Дії із задачею «{title}»',
-    sortBy: 'Сортувати за: {column}',
+    sortBy: 'Сортувати за стовпцем «{column}»',
   },
   form: {
     createTitle: 'Нова задача',
@@ -149,6 +152,7 @@ const uk: typeof en = {
     priority: 'Пріоритет',
     deadline: 'Дедлайн',
     deadlineDate: 'Дата дедлайну',
+    deadlineDateWith: 'Дата дедлайну: {date}',
     deadlineTime: 'Час дедлайну',
     pickDate: 'Оберіть дату',
     clearDeadline: 'Прибрати дедлайн',

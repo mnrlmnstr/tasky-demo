@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Trash2 } from 'lucide-vue-next'
-import { computed, useTemplateRef } from 'vue'
+import { computed, useId, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { TaskRead, TaskStatus } from '../../../api/generated/client'
@@ -35,6 +35,9 @@ const { isConfirmingDelete, isDeleting, askToDelete, deleteConfirmed } = useTask
 )
 const isBusy = computed(() => isMoving.value || isDeleting.value)
 
+// The card is named by its title, the text of its edit button; the button's own name says it edits.
+const titleId = useId()
+
 const { deadline, isOverdue } = useTaskDates(
   () => task,
   computed(() => task.status),
@@ -60,9 +63,14 @@ useFocusOnLeave(useTemplateRef<HTMLElement>('card'), () => isBusy.value)
     ref="card"
     data-testid="board-card"
     :data-task-id="task.id"
-    draggable="true"
-    class="card flex cursor-grab flex-col rounded-control border border-border bg-surface shadow-raised transition-opacity active:cursor-grabbing"
-    :class="[settings.density === 'compact' ? 'gap-1 p-2' : 'gap-2 p-3', { 'opacity-50': isDeleting }]"
+    :draggable="!isBusy"
+    :aria-labelledby="titleId"
+    class="card flex flex-col rounded-control border border-border bg-surface shadow-raised transition-opacity"
+    :class="[
+      settings.density === 'compact' ? 'gap-1 p-2' : 'gap-2 p-3',
+      isBusy ? 'cursor-progress' : 'cursor-grab active:cursor-grabbing',
+      { 'opacity-50': isDeleting },
+    ]"
     :aria-busy="isBusy ? 'true' : undefined"
     @dragstart="startDrag"
     @dragend="emit('dragend')"
@@ -86,7 +94,7 @@ useFocusOnLeave(useTemplateRef<HTMLElement>('card'), () => isBusy.value)
           :class="FOCUS_RING_CLASS"
           @click="useTaskFormStore().openEdit(task)"
         >
-          {{ task.title }}
+          <span :id="titleId">{{ task.title }}</span>
         </button>
       </p>
       <IconButton
@@ -109,8 +117,7 @@ useFocusOnLeave(useTemplateRef<HTMLElement>('card'), () => isBusy.value)
     <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-5 text-text-muted">
       <Badge :tone="PRIORITY_TONES[task.priority]">{{ t(`task.priority.${task.priority}`) }}</Badge>
       <span v-if="deadline !== null" data-testid="task-deadline" :class="{ 'text-danger-text': isOverdue }">
-        {{ t('task.due', { date: deadline }) }}
-        <template v-if="isOverdue"> · {{ t('task.overdue') }}</template>
+        {{ t(isOverdue ? 'task.dueOverdue' : 'task.due', { date: deadline }) }}
       </span>
     </div>
   </article>

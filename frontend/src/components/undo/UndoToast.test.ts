@@ -133,16 +133,20 @@ describe('undo toast', () => {
 })
 
 describe('undoing from the toast', () => {
-  it('runs the undo once, shows progress on the button meanwhile, and then goes away', async () => {
+  it('runs the undo once, shows progress on the button meanwhile, keeping the focus on it, and then goes away', async () => {
     const { host, undo } = mountToast()
     let finish!: () => void
     const action = vi.fn(() => new Promise<void>((resolve) => (finish = resolve)))
     undo.offer({ label: 'created', undo: action })
     await flushPromises()
 
+    const button = undoButton(host).element as HTMLElement
+    button.focus()
     await undoButton(host).trigger('click')
     expect(undoButton(host).attributes('aria-busy')).toBe('true')
-    expect(undoButton(host).attributes('disabled')).toBeDefined()
+    expect(undoButton(host).attributes('aria-disabled')).toBe('true')
+    expect(undoButton(host).attributes('disabled')).toBeUndefined()
+    expect(document.activeElement).toBe(button)
     expect(dismissButton(host).attributes('disabled')).toBeDefined()
     await undoButton(host).trigger('click')
 
@@ -159,6 +163,7 @@ describe('undoing from the toast', () => {
     ['server', 'Could not undo. Something went wrong on the server. Please try again.'],
     ['validation', 'Could not undo. Something went wrong. Please try again.'],
     ['aborted', 'Could not undo. Something went wrong. Please try again.'],
+    ['client', 'Could not undo. Something went wrong. Please try again.'],
   ] as const)('says why an undo failed with "%s" and offers no second try', async (kind, message) => {
     const { host, undo } = mountToast()
     undo.offer({ label: 'created', undo: failing(kind) })

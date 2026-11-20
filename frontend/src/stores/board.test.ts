@@ -8,6 +8,7 @@ import { fakeTasksApi, pageOf, task } from '../test/tasksApi'
 import { taskServer } from '../test/taskServer'
 import { BOARD_PAGE_SIZE, useBoardStore } from './board'
 import { useListViewStore } from './listView'
+import { tasksChanged } from './taskChanges'
 import { useTasksStore } from './tasks'
 import { useUndoStore } from './undo'
 
@@ -245,23 +246,34 @@ describe('loading the columns', () => {
     expect(api.queries.filter((query) => query.page_size === '100')).toHaveLength(3)
   })
 
-  it('reloads every column when the tasks are asked again after a change', () => {
+  it('reloads every column when the tasks have changed', () => {
     const api = fakeTasksApi()
-    const { board, tasks } = loadStores()
+    const { board } = loadStores()
     board.start()
 
-    tasks.retry()
+    tasksChanged()
 
     expect(api.queries).toHaveLength(6)
   })
 
-  it('asks the list again when it stops, as tasks may have changed on the board', () => {
+  it('does not follow the changes once stopped', () => {
+    const api = fakeTasksApi()
+    const { board } = loadStores()
+    board.start()
+    board.stop()
+
+    tasksChanged()
+
+    expect(api.queries).toHaveLength(3)
+  })
+
+  it('is not reloaded by the list asking again', () => {
     const api = fakeTasksApi()
     const { board, tasks } = loadStores()
     tasks.start()
     board.start()
 
-    board.stop()
+    tasks.retry()
 
     expect(api.queries.map((query) => query.page_size)).toEqual(['20', '100', '100', '100', '20'])
   })
@@ -289,7 +301,7 @@ describe('moving a card to another column', () => {
     expect(board.isMoving('id-Write')).toBe(false)
   })
 
-  it('sends the new status, then asks the two columns involved again and offers to undo', async () => {
+  it('sends the new status, then asks every column again and offers to undo', async () => {
     const { board, server, undo } = await startedBoard()
     const listsBefore = server.lists
 
@@ -297,7 +309,7 @@ describe('moving a card to another column', () => {
     await flushPromises()
 
     expect(server.changes).toEqual([{ method: 'PATCH', path: '/api/v1/tasks/id-Call', body: { status: 'done' } }])
-    expect(server.lists - listsBefore).toBe(2)
+    expect(server.lists - listsBefore).toBe(3)
     expect(titles(board)).toEqual({ todo: ['Write'], in_progress: ['Plan'], done: ['Call', 'Ship'] })
     expect(totals(board)).toEqual([1, 1, 2])
     expect(board.isMoving('id-Call')).toBe(false)
@@ -384,5 +396,44 @@ describe('moving a card to another column', () => {
     void board.move(card, 'in_progress')
 
     expect(server.changes).toHaveLength(1)
+  })
+
+  // The same cause as the drag race: the move was undone as soon as its reload settled, whatever that reload did.
+  it('keeps a moved card in its new column when the columns cannot be reloaded after the move', async () => {
+    const { board, server } = await startedBoard()
+    server.loseListConnection()
+
+    await board.move(board.columns.todo.items[1], 'done')
+    await flushPromises()
+
+    expect(titles(board)).toEqual({ todo: ['Write'], in_progress: ['Plan'], done: ['Call', 'Ship'] })
+    expect(totals(board)).toEqual([1, 1, 2])
+  })
+})
+
+describe('a task deleted on the server', () => {
+  it('leaves every column at once, also when the reload after it fails', async () => {
+    const server = taskServer(rows())
+    const { board } = loadStores()
+    board.start()
+    await flushPromises()
+    server.loseListConnection()
+
+    tasksChanged({ deleted: 'id-Plan' })
+    await flushPromises()
+
+    expect(titles(board)).toEqual({ todo: ['Write', 'Call'], in_progress: [], done: ['Ship'] })
+    expect(totals(board)).toEqual([2, 0, 1])
+  })
+
+  it('changes nothing for a task the board does not show', async () => {
+    taskServer(rows())
+    const { board } = loadStores()
+    board.start()
+    await flushPromises()
+
+    tasksChanged({ deleted: 'id-Elsewhere' })
+
+    expect(totals(board)).toEqual([2, 1, 1])
   })
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { DateFormatter, fromDate, toCalendarDate, type DateValue } from '@internationalized/date'
+import { DateFormatter, fromDate, Time, toCalendarDate, type DateValue } from '@internationalized/date'
 import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-vue-next'
 import {
   DatePickerCalendar,
@@ -17,6 +17,9 @@ import {
   DatePickerPrev,
   DatePickerRoot,
   DatePickerTrigger,
+  TimeFieldInput,
+  TimeFieldRoot,
+  type TimeValue,
 } from 'reka-ui'
 import { computed, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -53,6 +56,22 @@ function pick(day: DateValue | undefined): void {
   if (time.value === '') time.value = END_OF_DAY
 }
 
+// The field holds a time of day; the model, `HH:MM` as the deadline is built from.
+const timeValue = computed(() => {
+  if (time.value === '') return undefined
+  const [hour, minute] = time.value.split(':').map(Number)
+  return new Time(hour, minute)
+})
+
+function twoDigits(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+// A time cleared segment by segment is no time, which a deadline reads as the end of its day.
+function pickTime(value: TimeValue | null | undefined): void {
+  time.value = value ? `${twoDigits(value.hour)}:${twoDigits(value.minute)}` : ''
+}
+
 // The clear button goes away with the deadline, so focus moves to the control next to it.
 function clear(): void {
   date.value = undefined
@@ -61,11 +80,14 @@ function clear(): void {
 }
 
 const FIELD_CLASS = `h-9 rounded-control border border-border bg-surface px-3 text-sm text-text ${FOCUS_RING_CLASS}`
+// The time field is a group of segments: it shows the focus ring while one of them has it.
+const TIME_CLASS = 'h-9 rounded-control border border-border bg-surface px-3 text-sm text-text has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent'
 const STEP_CLASS = `size-8 rounded-item text-text-muted hover:bg-surface-muted hover:text-text ${CONTROL_CLASS}`
 </script>
 
 <template>
-  <div class="flex flex-wrap items-center gap-2">
+  <!-- Named as one group, so a message about the deadline can be linked to it. -->
+  <div role="group" :aria-label="t('form.deadline')" class="flex flex-wrap items-center gap-2">
     <DatePickerRoot
       :model-value="date"
       :default-placeholder="firstShown"
@@ -79,7 +101,7 @@ const STEP_CLASS = `size-8 rounded-item text-text-muted hover:bg-surface-muted h
           ref="dateButton"
           type="button"
           data-testid="deadline-date"
-          :aria-label="dateText === null ? t('form.deadlineDate') : `${t('form.deadlineDate')}: ${dateText}`"
+          :aria-label="dateText === null ? t('form.deadlineDate') : t('form.deadlineDateWith', { date: dateText })"
           class="inline-flex cursor-pointer items-center gap-2 hover:bg-surface-muted"
           :class="[FIELD_CLASS, { 'text-text-muted': dateText === null }]"
         >
@@ -136,15 +158,36 @@ const STEP_CLASS = `size-8 rounded-item text-text-muted hover:bg-surface-muted h
       </DatePickerContent>
     </DatePickerRoot>
 
-    <input
-      v-model="time"
-      type="time"
+    <!-- In the app's language, always on a 24-hour clock, whatever the browser would pick. -->
+    <TimeFieldRoot
+      v-slot="{ segments }"
+      :model-value="timeValue"
+      :locale="locale"
+      :hour-cycle="24"
+      granularity="minute"
+      :disabled="date === undefined"
       data-testid="deadline-time"
       :aria-label="t('form.deadlineTime')"
-      :disabled="date === undefined"
-      class="disabled:cursor-not-allowed disabled:opacity-50"
-      :class="FIELD_CLASS"
-    />
+      class="inline-flex items-center data-disabled:cursor-not-allowed data-disabled:opacity-50"
+      :class="TIME_CLASS"
+      @update:model-value="pickTime"
+    >
+      <!-- Literals are the separators, more than one of them; a blank one would only pad the field's end. -->
+      <template v-for="(item, index) in segments" :key="index">
+        <template v-if="item.part === 'literal'">
+          <TimeFieldInput v-if="item.value.trim() !== ''" :part="item.part" class="text-text-muted">
+            {{ item.value }}
+          </TimeFieldInput>
+        </template>
+        <TimeFieldInput
+          v-else
+          :part="item.part"
+          class="rounded-item px-0.5 tabular-nums outline-none focus:bg-accent-soft data-placeholder:text-text-muted"
+        >
+          {{ item.value }}
+        </TimeFieldInput>
+      </template>
+    </TimeFieldRoot>
 
     <IconButton v-if="date !== undefined" :label="t('form.clearDeadline')" @click="clear">
       <X aria-hidden="true" />

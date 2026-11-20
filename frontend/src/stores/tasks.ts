@@ -6,6 +6,7 @@ import { failureKind, type ApiErrorKind } from '../api/http'
 import { latestOnly } from '../api/latestOnly'
 import { FIRST_PAGE, useListViewStore } from './listView'
 import { useSettingsStore } from './settings'
+import { onTasksChanged } from './taskChanges'
 
 // `loading` is the first load, with nothing to show yet; `reloading` keeps the rows of the last answer on screen.
 // `failed` says the last request failed; the rows of the last answer, if there was one, are still in `items`.
@@ -81,8 +82,12 @@ export const useTasksStore = defineStore('tasks', () => {
     inFlight.value = false
   }
 
+  // The board shows the tasks its own way: while it is on screen the list does not load, and it loads
+  // again when it is shown, since the tasks may have changed in the meantime.
+  const following = computed(() => started.value && view.view !== 'board')
+
   function retry(): void {
-    if (started.value) void load()
+    if (following.value) void load()
   }
 
   // For a task the server has deleted: the list shows the deletion at once, also when the reload that
@@ -97,10 +102,10 @@ export const useTasksStore = defineStore('tasks', () => {
   function start(): void {
     if (started.value) return
     started.value = true
-    void load()
+    retry()
   }
 
-  // Both watchers belong to the store, not to whichever component called `start`, so the list keeps
+  // All the watchers belong to the store, not to whichever component called `start`, so the list keeps
   // following the view after that component is gone.
 
   // Synchronous, so the page is already 1 when the query watcher below runs: one request, not two.
@@ -112,9 +117,22 @@ export const useTasksStore = defineStore('tasks', () => {
     { flush: 'sync' },
   )
 
+  // Leaving the board shows the list again.
+  watch(
+    () => view.view === 'board',
+    (onBoard) => {
+      if (!onBoard) retry()
+    },
+  )
+
   // Runs once per tick, however many fields of the view changed in it.
   watch(queryKey, (key) => {
-    if (started.value && key !== coveredQuery) void load()
+    if (following.value && key !== coveredQuery) void load()
+  })
+
+  onTasksChanged(({ deleted }) => {
+    if (deleted !== undefined) forget(deleted)
+    retry()
   })
 
   return { items, total, pages, page, status, error, start, retry, forget }

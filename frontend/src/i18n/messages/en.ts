@@ -53,6 +53,7 @@ export default {
     noDeadline: 'No deadline',
     overdue: 'Overdue',
     due: 'Due {date}',
+    dueOverdue: 'Due {date} · Overdue',
     created: 'Created {date}',
   },
   toolbar: {
@@ -123,6 +124,8 @@ export default {
     shown: 'Showing {shown} of {total}',
     empty: 'No tasks',
     loading: 'Loading tasks…',
+    reloading: 'Updating tasks…',
+    counts: '{todo}; {inProgress}; {done}',
     retry: 'Try again',
   },
   table: {
@@ -146,6 +149,7 @@ export default {
     priority: 'Priority',
     deadline: 'Deadline',
     deadlineDate: 'Deadline date',
+    deadlineDateWith: 'Deadline date: {date}',
     deadlineTime: 'Deadline time',
     pickDate: 'Pick a date',
     clearDeadline: 'Clear deadline',

@@ -1,5 +1,5 @@
 import { deleteTask, updateTask, type TaskRead, type TaskUpdate } from '../api/generated/client'
-import { useTasksStore } from './tasks'
+import { tasksChanged } from './taskChanges'
 import { useUndoStore, type UndoLabel } from './undo'
 
 /*
@@ -9,16 +9,15 @@ import { useUndoStore, type UndoLabel } from './undo'
 
 const EDITABLE_FIELDS = ['title', 'description', 'status', 'priority', 'deadline'] as const satisfies readonly (keyof TaskUpdate)[]
 
-// Whether the undo went through or not, the list is asked again, so it shows what the server has.
+// Whether the undo went through or not, the tasks are reloaded, so they show what the server has.
 function offer(label: UndoLabel, reverse: () => Promise<unknown>): void {
-  const tasks = useTasksStore()
   useUndoStore().offer({
     label,
     undo: async () => {
       try {
         await reverse()
       } finally {
-        tasks.retry()
+        tasksChanged()
       }
     },
   })

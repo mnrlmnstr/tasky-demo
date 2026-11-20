@@ -1,11 +1,14 @@
 const NO_CONTENT = 204
 const NOT_FOUND = 404
 const UNPROCESSABLE = 422
+const FIRST_SERVER_ERROR = 500
 // What a proxy in front of the API (the dev server, the frontend container) answers when the backend
 // behind it is down or does not answer: to the user, the server could not be reached.
 const UNREACHABLE = new Set([502, 503, 504])
 
-export type ApiErrorKind = 'not_found' | 'validation' | 'network' | 'aborted' | 'server'
+// `client` is any other 4xx: the request was refused (unauthorised, a conflict, too many requests), which the
+// server did not fail at. It has no message of its own.
+export type ApiErrorKind = 'not_found' | 'validation' | 'network' | 'aborted' | 'client' | 'server'
 
 export interface FieldError {
   field: string
@@ -91,6 +94,9 @@ async function failureOf(response: Response, options: RequestInit): Promise<ApiE
   }
   if (UNREACHABLE.has(response.status)) {
     return new ApiError('network', response.status)
+  }
+  if (response.status < FIRST_SERVER_ERROR) {
+    return new ApiError('client', response.status)
   }
   return new ApiError('server', response.status)
 }

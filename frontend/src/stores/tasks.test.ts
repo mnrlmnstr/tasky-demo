@@ -7,6 +7,7 @@ import type { PageTaskRead, TaskRead } from '../api/generated/client'
 import { requestUrl } from '../test/requestUrl'
 import { useListViewStore } from './listView'
 import { SETTINGS_STORAGE_KEY, useSettingsStore } from './settings'
+import { tasksChanged } from './taskChanges'
 import { useTasksStore } from './tasks'
 
 let pinia: Pinia | undefined
@@ -865,5 +866,64 @@ describe('forgetting a deleted task', () => {
 
     expect(api.queries).toEqual([])
     expect(tasks.status).toBe('idle')
+  })
+})
+
+describe('following the tasks-changed signal', () => {
+  it('loads once for each change', async () => {
+    const api = fakeApi()
+    const { tasks } = loadStores()
+    tasks.start()
+    await api.respondTo(0, pageOf(['Write']))
+
+    tasksChanged()
+
+    expect(api.queries).toHaveLength(2)
+  })
+
+  it('takes a deleted task out at once, then loads', async () => {
+    const api = fakeApi()
+    const { tasks } = loadStores()
+    tasks.start()
+    await api.respondTo(0, pageOf(['Write', 'Call']))
+
+    tasksChanged({ deleted: 'id-Write' })
+    await api.loseConnection(1)
+
+    expect(titlesOf(tasks.items)).toEqual(['Call'])
+    expect(tasks.total).toBe(1)
+  })
+})
+
+describe('while the board is shown', () => {
+  it('does not load when started on the board', () => {
+    const api = fakeApi()
+    addressIs('/?view=board')
+    const { tasks } = loadStores()
+
+    tasks.start()
+
+    expect(api.queries).toEqual([])
+  })
+
+  it('does not load for a change, a new filter or a retry, and loads once when the list is shown again', async () => {
+    const api = fakeApi()
+    const { tasks, view } = loadStores()
+    tasks.start()
+    await api.respondTo(0, pageOf(['Write']))
+
+    view.view = 'board'
+    await nextTick()
+    tasksChanged()
+    view.search = 'report'
+    tasks.retry()
+    await nextTick()
+    expect(api.queries).toHaveLength(1)
+
+    view.view = 'table'
+    await nextTick()
+
+    expect(api.queries).toHaveLength(2)
+    expect(api.queries[1]).toMatchObject({ search: 'report' })
   })
 })

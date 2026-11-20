@@ -236,14 +236,14 @@ describe('quick picks', () => {
     expect(deadline()).toEqual(expected)
   })
 
-  it('filters overdue as everything due up to the end of today', async () => {
+  it('filters overdue as everything due before today', async () => {
     history.replaceState(null, '', '/?deadline_from=2026-11-01&deadline_to=2026-11-30')
     const filter = await mountFilter()
     await openFilter(filter)
 
     await clickButton('Overdue')
 
-    expect(deadline()).toEqual(['', '2026-11-20'])
+    expect(deadline()).toEqual(['', '2026-11-19'])
   })
 
   it('clears the deadline filter', async () => {
