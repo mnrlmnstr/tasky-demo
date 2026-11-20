@@ -143,7 +143,14 @@ async function moveByMenu(task: TaskRead, delta: -1 | 1): Promise<void> {
           </TransitionGroup>
         </ul>
       </slot>
-      <Pagination :page="tasks.page" :pages="tasks.pages" class="mt-5" @update:page="goToPage" />
+      <!-- With all the tasks on one page there is nowhere to go, also while the rows of a numbered page are still shown. -->
+      <Pagination
+        v-if="settings.pageSize !== 'all'"
+        :page="tasks.page"
+        :pages="tasks.pages"
+        class="mt-5"
+        @update:page="goToPage"
+      />
     </template>
 
     <template v-else-if="errorMessage === null">

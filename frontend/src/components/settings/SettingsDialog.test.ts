@@ -122,7 +122,7 @@ describe('SettingsDialog', () => {
     await mountSettings()
 
     expect(segmentLabels('Theme')).toEqual(['Light', 'Dark', 'System'])
-    expect(segmentLabels('Tasks per page')).toEqual(['10', '20', '50'])
+    expect(segmentLabels('Tasks per page')).toEqual(['10', '20', '50', 'All'])
     expect(segmentLabels('Language')).toEqual(['Українська', 'English'])
   })
 
@@ -181,6 +181,29 @@ describe('SettingsDialog', () => {
     expect(useSettingsStore().pageSize).toBe(50)
     expect(selected('Tasks per page')).toBe('50')
     expect(stored()).toMatchObject({ pageSize: 50 })
+  })
+
+  it('offers all the tasks on one page, and saves that choice', async () => {
+    await mountSettings()
+
+    await choose('Tasks per page', 'All')
+
+    expect(useSettingsStore().pageSize).toBe('all')
+    expect(selected('Tasks per page')).toBe('All')
+    expect(stored()).toMatchObject({ pageSize: 'all' })
+
+    await choose('Tasks per page', '10')
+
+    expect(useSettingsStore().pageSize).toBe(10)
+  })
+
+  it('shows "All" as selected when it was saved earlier, in Ukrainian too', async () => {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ pageSize: 'all', locale: 'uk' }))
+
+    await mountSettings('uk')
+
+    expect(segmentLabels('Задач на сторінці')).toEqual(['10', '20', '50', 'Усі'])
+    expect(selected('Задач на сторінці')).toBe('Усі')
   })
 
   it('redraws itself in Ukrainian as soon as Ukrainian is chosen', async () => {

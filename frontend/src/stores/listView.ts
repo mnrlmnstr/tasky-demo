@@ -6,6 +6,7 @@ import { computed, nextTick, watch } from 'vue'
 import { TaskOrdering, type ListTasksParams } from '../api/generated/client'
 import { TASK_STATUSES } from '../api/taskStatuses'
 import { clockTimeZone, injectClock } from '../i18n/clock'
+import { useSettingsStore } from './settings'
 import { oneOf, readStored, writeStored } from './storage'
 
 export const LIST_VIEW_STORAGE_KEY = 'tasky:list-view'
@@ -153,8 +154,16 @@ export const useListViewStore = defineStore('listView', () => {
   // the current history entry a tick after `params` changes.
   const params = useUrlSearchParams('history')
   const clock = injectClock()
+  const settings = useSettingsStore()
 
-  const view = computed<View>(() => ({ ...filtersFromParams(params), page: pageFromParam(params.page) }))
+  // With all the tasks on one page there is only page 1: a page in the address is ignored and left out of it.
+  const onePage = computed(() => settings.pageSize === 'all')
+
+  function pageShown(page: number): number {
+    return onePage.value ? FIRST_PAGE : page
+  }
+
+  const view = computed<View>(() => ({ ...filtersFromParams(params), page: pageShown(pageFromParam(params.page)) }))
 
   function show(next: View): void {
     const nextParams = paramsOf(next)
@@ -188,7 +197,8 @@ export const useListViewStore = defineStore('listView', () => {
 
   // Status, ordering, page and clearing each add a history entry. Search replaces the current one:
   // it changes on every pause in typing and would bury the views worth going back to.
-  function change(next: View, step: HistoryStep): void {
+  function change(requested: View, step: HistoryStep): void {
+    const next = { ...requested, page: pageShown(requested.page) }
     if (isCurrent(next)) return
     if (step === 'push') addHistoryEntry()
     show(next)
@@ -288,6 +298,15 @@ export const useListViewStore = defineStore('listView', () => {
   const addressDescribesView = OWNED_PARAMS.some((name) => name in params)
   // Also rewrites what the address held in canonical form, which drops its invalid values.
   show(addressDescribesView ? view.value : { ...loadSavedFilters(), page: FIRST_PAGE })
+
+  // Choosing all the tasks on one page takes the page out of the address, in place of the current entry.
+  watch(
+    onePage,
+    (one) => {
+      if (one) show(view.value)
+    },
+    { flush: 'sync' },
+  )
 
   // Synchronous, so the view is saved by the time the assignment returns; back/forward pass through here too.
   watch(

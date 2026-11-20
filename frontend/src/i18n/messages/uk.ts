@@ -109,6 +109,7 @@ const uk: typeof en = {
       system: 'Системна',
     },
     pageSize: 'Задач на сторінці',
+    allTasks: 'Усі',
     language: 'Мова',
     languages: {
       uk: 'Українська',
