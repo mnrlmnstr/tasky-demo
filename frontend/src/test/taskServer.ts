@@ -77,8 +77,8 @@ export function taskServer(rows: TaskRead[]) {
       })
       return release
     },
-    /** Makes every change from now on fail: with this HTTP status, or with a lost connection. */
-    failChanges(how: number | 'offline'): void {
+    /** Makes every change from now on fail: with this HTTP status, or with a lost connection; `null` applies them again. */
+    failChanges(how: number | 'offline' | null): void {
       failure = how
     },
     /** Makes every list request from now on fail with a lost connection, or answers them again. */

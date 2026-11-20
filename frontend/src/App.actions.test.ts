@@ -239,6 +239,27 @@ describe('changing the status from the row', () => {
     expect(page.get(`${TOAST} p`).text()).toBe(NETWORK_ERROR)
   })
 
+  it('works again, without reloading the page, once the server that could not be reached is back', async () => {
+    const { page, server } = await openApp([task('Write'), task('Call')])
+    server.loseListConnection()
+    server.failChanges('offline')
+    await pickStatus(page, 'Write', 'Done')
+    expect(page.get(`${TOAST} p`).text()).toBe(NETWORK_ERROR)
+    expect(statusTrigger(page, 'Write').attributes('aria-label')).toBe('Status: To do. Change status')
+    useTasksStore().retry()
+    await settle()
+    expect(page.get('main [role="alert"] p').text()).toBe(NETWORK_ERROR)
+
+    server.loseListConnection(false)
+    server.failChanges(null)
+    await pickStatus(page, 'Write', 'Done')
+
+    expect(server.changes.at(-1)).toEqual({ method: 'PATCH', path: '/api/v1/tasks/id-Write', body: { status: 'done' } })
+    expect(statusTrigger(page, 'Write').attributes('aria-label')).toBe('Status: Done. Change status')
+    expect(page.get(`${TOAST} p`).text()).toBe('Status changed')
+    expect(page.find('main [role="alert"]').exists()).toBe(false)
+  })
+
   it('says the task no longer exists and takes the row away when it was deleted meanwhile', async () => {
     const rows = [task('Write'), task('Call')]
     const { page } = await openApp(rows)

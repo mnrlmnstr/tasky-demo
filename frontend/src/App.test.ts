@@ -166,6 +166,27 @@ describe('task list on the page', () => {
     expect(page.find('main [role="alert"]').exists()).toBe(false)
   })
 
+  it('says the server cannot be reached while it is down, and shows the list once it is back and "Try again" is pressed', async () => {
+    const api = fakeTasksApi()
+    const page = mountApp()
+    await api.loseConnection(0)
+    expect(page.get('main [role="alert"] p').text()).toBe(
+      'Could not reach the server. Check your connection and try again.',
+    )
+
+    await page.get('main [role="alert"] button').trigger('click')
+    await api.loseConnection(1)
+    expect(page.get('main [role="alert"] p').text()).toBe(
+      'Could not reach the server. Check your connection and try again.',
+    )
+    await page.get('main [role="alert"] button').trigger('click')
+    await api.respondTo(2, pageOf(['Write the report', 'Call the bank']))
+
+    expect(titles(page)).toEqual(['Write the report', 'Call the bank'])
+    expect(page.find('main [role="alert"]').exists()).toBe(false)
+    expect(page.get('main [data-testid="task-total"]').text()).toBe('2 tasks')
+  })
+
   it('redraws the page in the new language as soon as the language setting changes', async () => {
     const api = fakeTasksApi()
     const page = mountApp('en')
