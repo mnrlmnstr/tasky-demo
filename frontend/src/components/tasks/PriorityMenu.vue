@@ -60,7 +60,7 @@ const items = computed(() =>
         >
           {{ t(`task.priority.${priority}`) }}
           <ChevronDown
-            class="-mr-0.5 size-3 opacity-0 transition-opacity group-hover/priority:opacity-100 group-focus-visible/priority:opacity-100 group-aria-expanded/priority:opacity-100"
+            class="-mr-0.5 hidden size-3 group-hover/priority:block group-focus-visible/priority:block group-aria-expanded/priority:block"
             aria-hidden="true"
           />
         </Badge>
