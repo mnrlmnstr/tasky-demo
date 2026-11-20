@@ -146,6 +146,10 @@ export type ListTasksParams = {
   status?: TaskStatus;
   /** Only tasks whose title contains this text, ignoring case. */
   search?: string;
+  /** Only tasks due at or after this instant (inclusive), with a timezone. Tasks without a deadline are left out while either bound is set. */
+  deadline_from?: string;
+  /** Only tasks due before this instant (exclusive), with a timezone; must not be before `deadline_from`. */
+  deadline_to?: string;
   /** Sort by `created_at` or `deadline`; a leading `-` sorts descending. Tasks without a deadline come last either way. */
   ordering?: TaskOrdering;
   /**
@@ -213,7 +217,9 @@ export const getListTasksUrl = (params?: ListTasksParams,) => {
 
 /**
  * One page of tasks, newest first unless `ordering` says otherwise. Filter by `status`
- * and search titles with `search`. Deleted tasks never appear.
+ * and search titles with `search`. `deadline_from` (inclusive) and `deadline_to` (exclusive)
+ * keep tasks due in that range and leave out tasks without a deadline; `deadline_from` after
+ * `deadline_to` answers `422`. Deleted tasks never appear.
  * @summary List tasks
  */
 export const listTasks = async (params?: ListTasksParams, options?: Parameters<typeof apiFetch>[1]): Promise<PageTaskRead> => {

@@ -423,7 +423,7 @@
     },
     "/api/v1/tasks": {
       "get": {
-        "description": "One page of tasks, newest first unless `ordering` says otherwise. Filter by `status`\nand search titles with `search`. Deleted tasks never appear.",
+        "description": "One page of tasks, newest first unless `ordering` says otherwise. Filter by `status`\nand search titles with `search`. `deadline_from` (inclusive) and `deadline_to` (exclusive)\nkeep tasks due in that range and leave out tasks without a deadline; `deadline_from` after\n`deadline_to` answers `422`. Deleted tasks never appear.",
         "operationId": "listTasks",
         "parameters": [
           {
@@ -450,6 +450,36 @@
                 "\u0437\u0432\u0456\u0442"
               ],
               "title": "Search",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only tasks due at or after this instant (inclusive), with a timezone. Tasks without a deadline are left out while either bound is set.",
+            "in": "query",
+            "name": "deadline_from",
+            "required": false,
+            "schema": {
+              "description": "Only tasks due at or after this instant (inclusive), with a timezone. Tasks without a deadline are left out while either bound is set.",
+              "examples": [
+                "2026-11-19T22:00:00Z"
+              ],
+              "format": "date-time",
+              "title": "Deadline From",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Only tasks due before this instant (exclusive), with a timezone; must not be before `deadline_from`.",
+            "in": "query",
+            "name": "deadline_to",
+            "required": false,
+            "schema": {
+              "description": "Only tasks due before this instant (exclusive), with a timezone; must not be before `deadline_from`.",
+              "examples": [
+                "2026-11-20T22:00:00Z"
+              ],
+              "format": "date-time",
+              "title": "Deadline To",
               "type": "string"
             }
           },
