@@ -22,6 +22,7 @@ export function taskServer(rows: TaskRead[]) {
   let lists = 0
   let gate = Promise.resolve()
   let failure: number | 'offline' | null = null
+  let offline = false
 
   function list(query: URLSearchParams): Response {
     lists += 1
@@ -41,7 +42,10 @@ export function taskServer(rows: TaskRead[]) {
   const answer: typeof fetch = async (input, init) => {
     const url = new URL(String(input), 'http://localhost')
     const { method, body } = init as RequestInit
-    if (method === 'GET') return list(url.searchParams)
+    if (method === 'GET') {
+      if (offline) throw new TypeError('Failed to fetch')
+      return list(url.searchParams)
+    }
     const sent = typeof body === 'string' ? JSON.parse(body) : undefined
     changes.push({ method: String(method), path: decodeURIComponent(url.pathname), body: sent })
     await gate
@@ -76,6 +80,10 @@ export function taskServer(rows: TaskRead[]) {
     /** Makes every change from now on fail: with this HTTP status, or with a lost connection. */
     failChanges(how: number | 'offline'): void {
       failure = how
+    },
+    /** Makes every list request from now on fail with a lost connection, or answers them again. */
+    loseListConnection(lost = true): void {
+      offline = lost
     },
   }
 }

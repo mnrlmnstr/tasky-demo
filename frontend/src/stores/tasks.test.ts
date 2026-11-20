@@ -813,3 +813,56 @@ describe('retrying', () => {
     expect(tasks.status).toBe('idle')
   })
 })
+
+describe('forgetting a deleted task', () => {
+  it('takes the task out of the rows and the count at once, without asking the API', async () => {
+    const api = fakeApi()
+    const { tasks } = loadStores()
+    tasks.start()
+    await api.respondTo(0, pageOf(['Write', 'Call', 'Book'], { total: 23, pages: 2 }))
+
+    tasks.forget('id-Call')
+
+    expect(titlesOf(tasks.items)).toEqual(['Write', 'Book'])
+    expect(tasks.total).toBe(22)
+    expect(tasks.status).toBe('ready')
+    expect(api.queries).toHaveLength(1)
+  })
+
+  it('stays as it is for a task it does not hold', async () => {
+    const api = fakeApi()
+    const { tasks } = loadStores()
+    tasks.start()
+    await api.respondTo(0, pageOf(['Write']))
+
+    tasks.forget('id-Elsewhere')
+
+    expect(titlesOf(tasks.items)).toEqual(['Write'])
+    expect(tasks.total).toBe(1)
+  })
+
+  it('keeps the task forgotten when the reload after it fails', async () => {
+    const api = fakeApi()
+    const { tasks } = loadStores()
+    tasks.start()
+    await api.respondTo(0, pageOf(['Write', 'Call']))
+
+    tasks.forget('id-Write')
+    tasks.retry()
+    await api.loseConnection(1)
+
+    expect(titlesOf(tasks.items)).toEqual(['Call'])
+    expect(tasks.total).toBe(1)
+    expect(tasks.error).toBe('network')
+  })
+
+  it('does nothing before the store is started', () => {
+    const api = fakeApi()
+    const { tasks } = loadStores()
+
+    tasks.forget('id-Write')
+
+    expect(api.queries).toEqual([])
+    expect(tasks.status).toBe('idle')
+  })
+})

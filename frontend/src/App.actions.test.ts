@@ -453,6 +453,21 @@ describe('deleting from the row', () => {
     expect(document.activeElement).toBe(deleteButton(page, 'Write').element)
   })
 
+  it('takes the deleted task off the list also when the list cannot be reloaded afterwards', async () => {
+    const { page, server } = await openApp([task('Write'), task('Call')])
+    server.loseListConnection()
+    await askToDelete(page, 'Write')
+
+    await pressDialogButton('Delete')
+
+    expect(server.changes).toHaveLength(1)
+    expect(titles(page)).toEqual(['Call'])
+    expect(page.findAll('main li [aria-busy="true"]')).toHaveLength(0)
+    expect(page.get('[data-testid="task-total"]').text()).toBe('1 task')
+    expect(page.get('main [role="alert"] p').text()).toBe(NETWORK_ERROR)
+    expect(document.activeElement).toBe(listRegion(page))
+  })
+
   it('takes a task that is already gone off the list quietly', async () => {
     const rows = [task('Write'), task('Call')]
     const { page, server } = await openApp(rows)

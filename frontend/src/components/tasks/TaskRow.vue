@@ -110,7 +110,8 @@ function askToDelete(): void {
   if (!isBusy.value) isConfirmingDelete.value = true
 }
 
-// Not undoable, which is why it is confirmed first. The row stays dimmed until the reloaded list drops it.
+// Not undoable, which is why it is confirmed first. The row stays dimmed until the server has deleted
+// the task, then leaves the list at once; the reload that follows fills the page up again.
 async function deleteConfirmed(): Promise<void> {
   isDeleting.value = true
   try {
@@ -124,6 +125,7 @@ async function deleteConfirmed(): Promise<void> {
       return
     }
   }
+  tasks.forget(task.id)
   tasks.retry()
 }
 

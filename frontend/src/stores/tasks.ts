@@ -85,6 +85,15 @@ export const useTasksStore = defineStore('tasks', () => {
     if (started.value) void load()
   }
 
+  // For a task the server has deleted: the list shows the deletion at once, also when the reload that
+  // follows fails, instead of keeping a row that no longer exists.
+  function forget(id: TaskRead['id']): void {
+    const kept = items.value.filter((item) => item.id !== id)
+    if (kept.length === items.value.length) return
+    items.value = kept
+    total.value -= 1
+  }
+
   function start(): void {
     if (started.value) return
     started.value = true
@@ -108,5 +117,5 @@ export const useTasksStore = defineStore('tasks', () => {
     if (started.value && key !== coveredQuery) void load()
   })
 
-  return { items, total, pages, page, status, error, start, retry }
+  return { items, total, pages, page, status, error, start, retry, forget }
 })
