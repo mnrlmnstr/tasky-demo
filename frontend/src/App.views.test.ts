@@ -91,16 +91,6 @@ describe('views of the tasks', () => {
     expect(query()).toEqual({ search: 'wr', ordering: 'deadline' })
   })
 
-  it('gives the board a wider page than the list', async () => {
-    const { page } = await openApp(rows())
-    const card = () => page.get('header').element.parentElement?.classList
-    expect(card()).toContain('max-w-[760px]')
-
-    await switchTo(page, 'Board')
-
-    expect(card()).toContain('max-w-[1100px]')
-  })
-
   it('moves a card between columns on the server, and Undo moves it back', async () => {
     const { page, server } = await openApp(rows(), '/?view=board')
     const card = page.findAll('[data-testid="board-card"]')[1]

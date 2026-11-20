@@ -33,7 +33,7 @@ async function settle() {
 }
 
 function searchBox(page: VueWrapper) {
-  return page.get<HTMLInputElement>('header input[type="search"]')
+  return page.get<HTMLInputElement>('[data-testid="card-header"] input[type="search"]')
 }
 
 async function search(page: VueWrapper, text: string) {

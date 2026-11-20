@@ -281,36 +281,25 @@ describe('clear filters', () => {
     expect(findClearFilters(toolbar)).toBeUndefined()
   })
 
-  // The toolbar is a grid of rows that are always there: status / sorting, and on the board on a wider
-  // screen one row. "Clear filters" takes the free end of the last row, so it never adds a row and the
-  // tasks below do not move when a filter is set or cleared.
-  const rowClasses = (classes: string[]) => classes.filter((name) => /(^|:)row-start-/.test(name)).sort()
+  // The toolbar has a start and an end that are always there, in every view: one row from the large
+  // breakpoint, two below it. "Clear filters" joins the end, so it never adds a row and the tasks below
+  // do not move when a filter is set or cleared.
+  it.each(['list', 'board', 'table'])(
+    'joins the end of the toolbar in the %s, instead of a row of its own',
+    async (name) => {
+      history.replaceState(null, '', name === 'list' ? '/?search=report' : `/?view=${name}&search=report`)
 
-  it('takes the free end of a row the toolbar always has, instead of a row of its own', async () => {
-    history.replaceState(null, '', '/?status=done')
+      const toolbar = await mountToolbar()
 
-    const toolbar = await mountToolbar()
-
-    const clear = findClearFilters(toolbar)?.classes() ?? []
-    expect(rowClasses(clear)).toEqual(['row-start-2'])
-    // The sorting and the deadline filter share one cell.
-    const sortCell = sortTrigger(toolbar).element.parentElement
-    expect(sortCell?.querySelector('[data-testid="deadline-filter"]')).not.toBeNull()
-    expect(rowClasses(Array.from(sortCell?.classList ?? []))).toEqual(['row-start-2'])
-    expect(rowClasses(toolbar.get('[role="group"][aria-label="Status"]').classes())).toEqual(['row-start-1'])
-  })
-
-  // Next to the status filter, the days of a deadline filter and "Clear filters" ran past the edge of
-  // the list in one row; the board has no status filter, so it keeps to one row on a wider screen.
-  it('keeps to one row on a wider screen only on the board', async () => {
-    history.replaceState(null, '', '/?view=board&search=report')
-
-    const toolbar = await mountToolbar()
-
-    expect(rowClasses(findClearFilters(toolbar)?.classes() ?? [])).toEqual(['md:row-start-1', 'row-start-2'])
-    const sortCell = sortTrigger(toolbar).element.parentElement
-    expect(rowClasses(Array.from(sortCell?.classList ?? []))).toEqual(['md:row-start-1', 'row-start-2'])
-  })
+      const end = toolbar.get('[data-testid="toolbar-end"]')
+      expect(end.element.firstElementChild).toBe(findClearFilters(toolbar)?.element)
+      expect(end.element.contains(sortTrigger(toolbar).element)).toBe(true)
+      expect(toolbar.get('[data-testid="toolbar"]').element.children).toHaveLength(2)
+      expect(toolbar.get('[data-testid="toolbar"]').classes()).toEqual(
+        expect.arrayContaining(['grid-cols-1', 'lg:grid-cols-[auto_minmax(0,1fr)]']),
+      )
+    },
+  )
 
   // At 380px the words of "Clear filters" overlapped the view switch: a phone gets only the icon, and the
   // days of the deadline filter shorten rather than push the switch over.
@@ -360,16 +349,16 @@ describe('clear filters', () => {
     expect(sortTrigger(toolbar).attributes('title')).toBe('Sort: Oldest first')
   })
 
-  // On the board on a wider screen "Clear filters" and the sorting share one row: the sorting's column may
-  // shrink, the label of "Clear filters" may not, so a long Ukrainian label stays on one line.
-  it('keeps its label on one line and lets the sorting give way on a shared row', async () => {
-    history.replaceState(null, '', '/?view=board&search=report&ordering=-deadline')
+  // On a full row "Clear filters" keeps its words on one line; the sorting is what gives way.
+  it('keeps its label on one line and lets the sorting give way on a full row', async () => {
+    history.replaceState(null, '', '/?search=report&ordering=-deadline')
 
     const toolbar = await mountToolbar('uk')
 
     const clear = toolbar.findAll('button').find((button) => button.text() === 'Скинути фільтри')
-    expect(clear?.classes()).toContain('whitespace-nowrap')
-    expect(toolbar.get('div.grid').classes()).toContain('md:grid-cols-[auto_minmax(min-content,1fr)_minmax(0,auto)]')
+    expect(clear?.classes()).toEqual(expect.arrayContaining(['whitespace-nowrap', 'shrink-0']))
+    expect(sortTrigger(toolbar).classes()).toContain('min-w-0')
+    expect(toolbar.get('[data-testid="toolbar-end"]').classes()).toContain('min-w-0')
   })
 
   it('is named in Ukrainian when the language is Ukrainian', async () => {

@@ -111,7 +111,7 @@ describe('task form in the app', () => {
     serveTasks([task('Write report')])
     const page = await openApp()
 
-    await press(page.get<HTMLButtonElement>('header button[data-variant="primary"]').element)
+    await press(page.get<HTMLButtonElement>('[data-testid="card-header"] button[data-variant="primary"]').element)
 
     expect(dialogTitle()).toBe('New task')
     expect(titleField().value).toBe('')
@@ -121,7 +121,7 @@ describe('task form in the app', () => {
     serveTasks([])
     const page = await openApp('uk')
 
-    await press(page.get<HTMLButtonElement>('header button[data-variant="primary"]').element)
+    await press(page.get<HTMLButtonElement>('[data-testid="card-header"] button[data-variant="primary"]').element)
 
     expect(dialogTitle()).toBe('Нова задача')
   })
@@ -129,7 +129,7 @@ describe('task form in the app', () => {
   it('shows the new task in the list and offers to undo it, with no other message', async () => {
     serveTasks([task('Write report')])
     const page = await openApp()
-    await press(page.get<HTMLButtonElement>('header button[data-variant="primary"]').element)
+    await press(page.get<HTMLButtonElement>('[data-testid="card-header"] button[data-variant="primary"]').element)
     await type(titleField(), 'Call the bank')
 
     await save()
@@ -143,7 +143,7 @@ describe('task form in the app', () => {
   it('takes the new task out of the list again when the create is undone', async () => {
     serveTasks([task('Write report')])
     const page = await openApp()
-    await press(page.get<HTMLButtonElement>('header button[data-variant="primary"]').element)
+    await press(page.get<HTMLButtonElement>('[data-testid="card-header"] button[data-variant="primary"]').element)
     await type(titleField(), 'Call the bank')
     await save()
 
@@ -205,7 +205,7 @@ describe('task form in the app', () => {
   it('returns focus to "New task" when the form it opened is closed', async () => {
     serveTasks([])
     const page = await openApp()
-    const newTask = page.get<HTMLButtonElement>('header button[data-variant="primary"]').element
+    const newTask = page.get<HTMLButtonElement>('[data-testid="card-header"] button[data-variant="primary"]').element
     await press(newTask)
 
     titleField().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
