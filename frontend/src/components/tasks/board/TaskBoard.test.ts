@@ -193,6 +193,9 @@ describe('the columns', () => {
 
     await alert.get('button').trigger('click')
     expect(api.queries.at(-1)).toMatchObject({ status: 'in_progress' })
+    // Pressed again while it asks: nothing more is sent.
+    await column(board, 'in_progress').get('[role="alert"] button').trigger('click')
+    expect(api.queries).toHaveLength(4)
     await api.respondTo(3, pageOf(['Plan']))
     expect(column(board, 'in_progress').find('[role="alert"]').exists()).toBe(false)
     expect(cardTitles(board, 'in_progress')).toEqual(['Plan'])

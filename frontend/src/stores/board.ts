@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, reactive, ref, shallowReactive, watch } from 'vue'
 
 import { listTasks, updateTask, type ListTasksParams, type TaskRead, type TaskStatus } from '../api/generated/client'
-import { ApiError, type ApiErrorKind } from '../api/http'
+import { failureKind, type ApiErrorKind } from '../api/http'
 import { latestOnly } from '../api/latestOnly'
 import { FIRST_PAGE, useListViewStore } from './listView'
 import { useTasksStore } from './tasks'
@@ -38,10 +38,6 @@ interface ColumnState {
 interface Move {
   task: TaskRead
   to: TaskStatus
-}
-
-function errorKind(failure: unknown): ApiErrorKind {
-  return failure instanceof ApiError ? failure.kind : 'server'
 }
 
 function columnStatus(column: ColumnState): ColumnStatus {
@@ -103,7 +99,7 @@ export const useBoardStore = defineStore('board', () => {
       column.error = null
     } catch (failure) {
       if (request !== column.latestRequest) return
-      column.error = errorKind(failure)
+      column.error = failureKind(failure)
     }
     column.inFlight = false
   }
@@ -173,7 +169,7 @@ export const useBoardStore = defineStore('board', () => {
       offerUndoOfStatusChange(task, after)
       await Promise.all([load(from), load(to)])
     } catch (failure) {
-      const kind = errorKind(failure)
+      const kind = failureKind(failure)
       // The task is gone, so the card should go too.
       if (kind === 'not_found') void reloadAll()
       useUndoStore().notifyError(kind)

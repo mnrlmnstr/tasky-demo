@@ -3,22 +3,13 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { TaskRead, TaskStatus } from '../../../api/generated/client'
-import type { ApiErrorKind } from '../../../api/http'
+import { errorMessageKey } from '../../../i18n/errorMessages'
 import { formatNumber } from '../../../i18n/numbers'
 import type { BoardColumn } from '../../../stores/board'
 import Button from '../../ui/Button.vue'
 import BoardCard from './BoardCard.vue'
 
 const SKELETON_CARDS = 3
-
-// Every kind is listed, so a new one does not compile until it has a message.
-const ERROR_MESSAGES: Record<ApiErrorKind, string> = {
-  network: 'errors.network',
-  server: 'errors.server',
-  not_found: 'errors.not_found',
-  validation: 'errors.generic',
-  aborted: 'errors.generic',
-}
 
 const { status, column, dragged } = defineProps<{
   status: TaskStatus
@@ -46,7 +37,12 @@ const name = computed(() => t(`task.status.${status}`))
 const count = computed(() => formatNumber(column.total, locale.value))
 const label = computed(() => t('board.column', { status: name.value, n: count.value }, column.total))
 const isRequesting = computed(() => column.status === 'loading' || column.status === 'reloading')
-const errorMessage = computed(() => (column.error === null ? null : t(ERROR_MESSAGES[column.error])))
+const errorMessage = computed(() => (column.error === null ? null : t(errorMessageKey(column.error))))
+
+// "Try again" stays focusable while it asks, so pressing it again then must do nothing.
+function retry(): void {
+  if (!isRequesting.value) emit('retry')
+}
 const shownNote = computed(() =>
   column.total > column.items.length
     ? t('board.shown', { shown: formatNumber(column.items.length, locale.value), total: count.value })
@@ -104,7 +100,9 @@ watch(
       class="mb-2 flex flex-col items-start gap-2 rounded-control bg-danger-soft px-3 py-2.5"
     >
       <p class="text-[13px] text-danger-text">{{ errorMessage }}</p>
-      <Button :loading="isRequesting" @click="emit('retry')">{{ t('board.retry') }}</Button>
+      <Button :busy="isRequesting" class="aria-disabled:cursor-progress" @click="retry">
+        {{ t('board.retry') }}
+      </Button>
     </div>
 
     <ul

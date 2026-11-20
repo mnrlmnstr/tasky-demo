@@ -89,6 +89,19 @@ describe('loading the columns', () => {
     expect(api.queries[0]).toEqual({ status: 'todo', search: 'report', ordering: 'deadline', page: '1', page_size: '100' })
   })
 
+  it('passes the deadline filter on to every column', () => {
+    const api = fakeTasksApi()
+    const { board } = loadStores('/?deadline_from=2026-03-01&deadline_to=2026-03-31&view=board')
+
+    board.start()
+
+    expect(api.queries.map((query) => [query.status, query.deadline_from, query.deadline_to])).toEqual([
+      ['todo', expect.any(String), expect.any(String)],
+      ['in_progress', expect.any(String), expect.any(String)],
+      ['done', expect.any(String), expect.any(String)],
+    ])
+  })
+
   it('starts only once', () => {
     const api = fakeTasksApi()
     const { board } = loadStores()
