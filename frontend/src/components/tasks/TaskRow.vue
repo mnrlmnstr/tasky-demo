@@ -13,12 +13,13 @@ import {
 import type { ApiError } from '../../api/http'
 import { useClock } from '../../i18n/clock'
 import { formatDateTime, formatRelativeTime, isPast } from '../../i18n/dates'
+import { useTaskFormStore } from '../../stores/taskForm'
 import { useTasksStore } from '../../stores/tasks'
 import { useUndoStore } from '../../stores/undo'
 import { offerUndoOfStatusChange } from '../../stores/undoActions'
 import AlertDialog from '../ui/AlertDialog.vue'
 import Badge, { type BadgeTone } from '../ui/Badge.vue'
-import { CONTROL_CLASS } from '../ui/control'
+import { CONTROL_CLASS, FOCUS_RING_CLASS } from '../ui/control'
 import DropdownMenu from '../ui/DropdownMenu.vue'
 import IconButton from '../ui/IconButton.vue'
 import { FOCUS_TASK_LIST } from './listFocus'
@@ -201,7 +202,15 @@ const createdAt = computed(() => formatDateTime(task.created_at, locale.value, {
           class="min-w-0 flex-1 text-[15px] leading-6 font-medium wrap-anywhere"
           :class="{ 'text-text-muted': isDone }"
         >
-          {{ task.title }}
+          <button
+            type="button"
+            :aria-label="t('form.editTask', { title: task.title })"
+            class="cursor-pointer rounded-item text-left decoration-text-muted underline-offset-4 hover:underline"
+            :class="FOCUS_RING_CLASS"
+            @click="useTaskFormStore().openEdit(task)"
+          >
+            {{ task.title }}
+          </button>
         </p>
         <Badge :tone="PRIORITY_TONES[task.priority]" class="mt-0.5 shrink-0">
           {{ t(`task.priority.${task.priority}`) }}
