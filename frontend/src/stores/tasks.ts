@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref, shallowRef, watch } from 'vue'
 
 import { listTasks, type ListTasksParams, type PageTaskRead, type TaskRead } from '../api/generated/client'
-import { ApiError, type ApiErrorKind } from '../api/http'
+import { failureKind, type ApiErrorKind } from '../api/http'
 import { latestOnly } from '../api/latestOnly'
 import { FIRST_PAGE, useListViewStore } from './listView'
 import { useSettingsStore } from './settings'
@@ -57,7 +57,7 @@ export const useTasksStore = defineStore('tasks', () => {
       answer = await requestList(params)
     } catch (failure) {
       if (request !== latestRequest) return
-      error.value = failure instanceof ApiError ? failure.kind : 'server'
+      error.value = failureKind(failure)
       inFlight.value = false
       return
     }

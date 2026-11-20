@@ -23,6 +23,14 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * The kind of a failed request, for its message. The client rejects with an `ApiError`; anything else
+ * (a bug, a broken response) is still reported, as a server error, rather than not at all.
+ */
+export function failureKind(failure: unknown): ApiErrorKind {
+  return failure instanceof ApiError ? failure.kind : 'server'
+}
+
 // The caller's signal decides: an abort with a custom reason or a timeout does not reject with an AbortError.
 function interrupted(options: RequestInit): ApiError {
   return new ApiError(options.signal?.aborted ? 'aborted' : 'network')

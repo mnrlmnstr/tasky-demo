@@ -90,6 +90,36 @@ describe('the status control of a row', () => {
     expect(useUndoStore().label).toBe('statusChanged')
   })
 
+  it('reports a failure the API layer did not name as a server error, not as nothing', async () => {
+    const { row } = await mountRow(task('Write'))
+    // Not a response at all, so reading it throws something other than an ApiError.
+    vi.stubGlobal('fetch', vi.fn(async () => null))
+
+    statusTrigger(row).element.click()
+    await settle()
+    menuItems()[2].click()
+    await settle()
+
+    expect(useUndoStore().notice).toBe('server')
+    expect(statusTrigger(row).attributes('aria-label')).toBe('Status: To do. Change status')
+  })
+
+  it('reports a delete that failed in a way the API layer did not name, as a server error', async () => {
+    const { row } = await mountRow(task('Write'))
+    vi.stubGlobal('fetch', vi.fn(async () => null))
+
+    row.get<HTMLButtonElement>('button[aria-label="Delete task"]').element.click()
+    await settle()
+    const confirm = Array.from(document.body.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button')).find(
+      (button) => button.textContent?.trim() === 'Delete',
+    )
+    confirm?.click()
+    await settle()
+
+    expect(useUndoStore().notice).toBe('server')
+    expect(row.get('div').attributes('aria-busy')).toBeUndefined()
+  })
+
   it('follows the task it is given once the list has a newer copy', async () => {
     const { row } = await mountRow(task('Write'))
     statusTrigger(row).element.click()

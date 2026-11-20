@@ -10,7 +10,7 @@ import {
   type TaskRead,
   type TaskStatus,
 } from '../../api/generated/client'
-import type { ApiError } from '../../api/http'
+import { failureKind } from '../../api/http'
 import { useClock } from '../../i18n/clock'
 import { formatDateTime, formatRelativeTime, isPast } from '../../i18n/dates'
 import { useTaskFormStore } from '../../stores/taskForm'
@@ -79,11 +79,6 @@ watch(
   },
 )
 
-// The generated client rejects with an `ApiError` and nothing else.
-function kindOf(failure: unknown) {
-  return (failure as ApiError).kind
-}
-
 async function changeStatus(next: TaskStatus): Promise<void> {
   if (next === status.value) return
   // As the row showed it, which is not the list's copy when the reload after an earlier change failed.
@@ -97,7 +92,7 @@ async function changeStatus(next: TaskStatus): Promise<void> {
     offerUndoOfStatusChange(before, after)
   } catch (failure) {
     pickedStatus.value = before.status
-    const kind = kindOf(failure)
+    const kind = failureKind(failure)
     // The task is gone, so the row should go too.
     if (kind === 'not_found') tasks.retry()
     undo.notifyError(kind)
@@ -117,7 +112,7 @@ async function deleteConfirmed(): Promise<void> {
   try {
     await deleteTask(task.id)
   } catch (failure) {
-    const kind = kindOf(failure)
+    const kind = failureKind(failure)
     // Deleted by someone else in the meantime: that is the outcome the user asked for.
     if (kind !== 'not_found') {
       isDeleting.value = false

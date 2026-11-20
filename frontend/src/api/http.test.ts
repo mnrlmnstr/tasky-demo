@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError, apiFetch } from './http'
+import { ApiError, apiFetch, failureKind } from './http'
 
 function fakeFetch(implementation: typeof fetch) {
   const fetchFake = vi.fn(implementation)
@@ -297,5 +297,21 @@ describe('apiFetch errors', () => {
     const failure = await failureOf(apiFetch('/api/v1/tasks'))
 
     expect(failure).toMatchObject({ kind: 'network' })
+  })
+})
+
+describe('failureKind', () => {
+  it.each(['network', 'server', 'not_found', 'validation', 'aborted'] as const)(
+    'reads the kind of an ApiError: %s',
+    (kind) => {
+      expect(failureKind(new ApiError(kind))).toBe(kind)
+    },
+  )
+
+  it.each([
+    ['an ordinary error', new TypeError('boom')],
+    ['something that is not an error at all', 'boom'],
+  ])('reports %s as a server error, so it still gets a message', (_name, failure) => {
+    expect(failureKind(failure)).toBe('server')
   })
 })
