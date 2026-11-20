@@ -2,7 +2,7 @@
 import { computed, provide, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { ApiErrorKind } from '../../api/http'
+import { errorMessageKey } from '../../i18n/errorMessages'
 import { formatNumber } from '../../i18n/numbers'
 import { useListViewStore } from '../../stores/listView'
 import { useTasksStore } from '../../stores/tasks'
@@ -13,15 +13,6 @@ import TaskRow from './TaskRow.vue'
 
 const SKELETON_ROWS = 6
 
-// Every kind is listed, so a new one does not compile until it has a message.
-const ERROR_MESSAGES: Record<ApiErrorKind, string> = {
-  network: 'errors.network',
-  server: 'errors.server',
-  not_found: 'errors.not_found',
-  validation: 'errors.generic',
-  aborted: 'errors.generic',
-}
-
 const { t, locale } = useI18n()
 const tasks = useTasksStore()
 const view = useListViewStore()
@@ -29,7 +20,7 @@ const view = useListViewStore()
 const hasRows = computed(() => tasks.items.length > 0)
 const isRequesting = computed(() => tasks.status === 'loading' || tasks.status === 'reloading')
 
-const errorMessage = computed(() => (tasks.error === null ? null : t(ERROR_MESSAGES[tasks.error])))
+const errorMessage = computed(() => (tasks.error === null ? null : t(errorMessageKey(tasks.error))))
 
 // The number is written for the language; the plural form is still chosen by the count itself.
 const totalText = computed(() => t('list.total', { n: formatNumber(tasks.total, locale.value) }, tasks.total))
