@@ -26,11 +26,15 @@ async function settle() {
   await flushPromises()
 }
 
-function mountBoard(locale: Locale = 'en') {
+function mountBoard(locale: Locale = 'en', { realTransitions = false }: { realTransitions?: boolean } = {}) {
   history.replaceState(null, '', '/?view=board')
   mounted = mount(TaskBoard, {
     attachTo: document.body,
-    global: { plugins: appPlugins(locale), provide: { [CLOCK as symbol]: NOON } },
+    global: {
+      plugins: appPlugins(locale),
+      provide: { [CLOCK as symbol]: NOON },
+      stubs: realTransitions ? { TransitionGroup: false } : {},
+    },
   })
   return mounted
 }
@@ -176,6 +180,23 @@ describe('the columns', () => {
     expect(column(board, 'todo').find('[data-testid="board-column-loading"]').exists()).toBe(false)
     expect(cardTitles(board, 'todo')).toEqual(['Write'])
     expect(column(board, 'in_progress').find('[data-testid="board-column-loading"]').exists()).toBe(true)
+  })
+
+  // The placeholders pulse forever, so a leave transition on them would never end and keep them on screen.
+  it('drop their placeholders at once when they load, without a leave transition', async () => {
+    const api = fakeTasksApi()
+    const board = mountBoard('en', { realTransitions: true })
+    await flushPromises()
+
+    await api.respondTo(0, pageOf(['Write']))
+    await api.respondTo(1, pageOf([]))
+
+    for (const status of ['todo', 'in_progress'] as const) {
+      expect(column(board, status).findAll('[data-testid="board-column-loading"]')).toHaveLength(0)
+      expect(column(board, status).findAll('.card-leave-active')).toHaveLength(0)
+    }
+    expect(cardTitles(board, 'todo')).toEqual(['Write'])
+    expect(column(board, 'in_progress').get('[data-testid="board-column-empty"]').text()).toBe('No tasks')
   })
 
   it('dim their cards while they reload', async () => {
