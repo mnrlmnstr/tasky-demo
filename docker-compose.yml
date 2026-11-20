@@ -98,6 +98,10 @@ services:
         - action: sync
           path: ./frontend/tsconfig.json
           target: /app/tsconfig.json
+        # Not read by the dev server either: synced so `npm run lint` and `npm run check` match the host.
+        - action: sync
+          path: ./frontend/eslint.config.js
+          target: /app/eslint.config.js
         - action: rebuild
           path: ./frontend/package.json
         - action: rebuild

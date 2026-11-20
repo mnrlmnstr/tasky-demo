@@ -39,7 +39,7 @@ describe('list tasks URL', () => {
     'leaves %s out of the query string when it is null',
     (name) => {
       // What an untyped caller (a cleared form field, a parsed route query) can hand over.
-      const url = getListTasksUrl({ [name]: null } as never)
+      const url = getListTasksUrl({ [name]: null })
 
       expect(url).toBe('/api/v1/tasks')
     },

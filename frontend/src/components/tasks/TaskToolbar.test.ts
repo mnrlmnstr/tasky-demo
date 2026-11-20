@@ -310,6 +310,27 @@ describe('clear filters', () => {
     expect(sortTrigger(toolbar).attributes('aria-label')).toBe('Sort: Deadline: latest first')
   })
 
+  // At 380px a shortened "Ne…" next to the deadline filter says nothing, so a phone gets only the icon.
+  it('shows only its icon on a phone, keeping the whole name as its accessible name and tooltip', async () => {
+    history.replaceState(null, '', '/?ordering=deadline')
+
+    const toolbar = await mountToolbar()
+
+    const trigger = sortTrigger(toolbar)
+    expect(trigger.get('span').classes()).toContain('max-sm:hidden')
+    expect(trigger.get('svg').classes()).not.toContain('max-sm:hidden')
+    expect(trigger.attributes('aria-label')).toBe('Sort: Deadline: soonest first')
+    expect(trigger.attributes('title')).toBe('Sort: Deadline: soonest first')
+  })
+
+  it('updates its tooltip with the sorting', async () => {
+    const toolbar = await mountToolbar()
+
+    await chooseSort(toolbar, 'Oldest first')
+
+    expect(sortTrigger(toolbar).attributes('title')).toBe('Sort: Oldest first')
+  })
+
   // On a wider screen status, "Clear filters" and the sorting share one row: the sorting's column may
   // shrink, the label of "Clear filters" may not, so a long Ukrainian label stays on one line.
   it('keeps its label on one line and lets the sorting give way on a shared row', async () => {

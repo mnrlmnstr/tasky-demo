@@ -11,6 +11,7 @@ import { useSettingsStore, type Locale } from './stores/settings'
 import { useTaskFormStore } from './stores/taskForm'
 import { useUndoStore } from './stores/undo'
 import { appPlugins } from './test/appPlugins'
+import { requestUrl } from './test/requestUrl'
 import { task } from './test/tasksApi'
 import { taskServer } from './test/taskServer'
 
@@ -72,7 +73,7 @@ function header(page: VueWrapper, name: string): DOMWrapper<Element> {
 function requestedOrderings(): string[] {
   return vi
     .mocked(fetch)
-    .mock.calls.map(([input]) => new URL(String(input), 'http://localhost').searchParams.get('ordering'))
+    .mock.calls.map(([input]) => requestUrl(input).searchParams.get('ordering'))
     .filter((ordering): ordering is string => ordering !== null)
 }
 

@@ -9,6 +9,7 @@ import { useTaskFormStore } from '../../stores/taskForm'
 import { useTasksStore } from '../../stores/tasks'
 import { useUndoStore } from '../../stores/undo'
 import { appPlugins } from '../../test/appPlugins'
+import { requestUrl } from '../../test/requestUrl'
 import { pageOf, task } from '../../test/tasksApi'
 import TaskFormDialog from './TaskFormDialog.vue'
 
@@ -47,7 +48,7 @@ function fakeServer(answer: Answer = accept) {
     }
     const request: SentRequest = {
       method,
-      path: new URL(String(input), 'http://localhost').pathname,
+      path: requestUrl(input).pathname,
       body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
     }
     changes.push(request)

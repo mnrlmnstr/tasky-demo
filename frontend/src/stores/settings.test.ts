@@ -214,6 +214,7 @@ describe('pre-paint snippet in index.html', () => {
 
   function runPrePaintSnippet(): void {
     const source = inlineScript.exec(indexHtml)?.[1] ?? 'throw new Error("no inline script in index.html")'
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval -- runs the inline snippet from index.html exactly as the browser would
     new Function(source)()
   }
 

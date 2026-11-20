@@ -6,6 +6,7 @@ import type { TaskRead } from './api/generated/client'
 import App from './App.vue'
 import type { Locale } from './stores/settings'
 import { appPlugins } from './test/appPlugins'
+import { requestUrl } from './test/requestUrl'
 import { pageOf, task } from './test/tasksApi'
 
 const TOAST = '[data-testid="undo-toast"]'
@@ -20,14 +21,14 @@ function json(body: unknown, status = 200): Response {
 function serveTasks(rows: TaskRead[]) {
   const answer: typeof fetch = async (input, init) => {
     const method = init?.method ?? 'GET'
-    const id = decodeURIComponent(new URL(String(input), 'http://localhost').pathname.split('/')[4] ?? '')
+    const id = decodeURIComponent(requestUrl(input).pathname.split('/')[4] ?? '')
     const index = rows.findIndex((row) => row.id === id)
     if (method === 'GET') return json({ ...pageOf([]), items: [...rows], total: rows.length })
     if (method === 'DELETE') {
       rows.splice(index, 1)
       return new Response(null, { status: 204 })
     }
-    const sent = JSON.parse(String(init?.body)) as Partial<TaskRead>
+    const sent = JSON.parse(init?.body as string) as Partial<TaskRead>
     if (method === 'POST') {
       rows.unshift({ ...task(String(sent.title)), ...sent })
       return json(rows[0], 201)

@@ -12,7 +12,7 @@ import TaskList from './TaskList.vue'
 let mounted: VueWrapper | undefined
 
 // The list as the app shows it: mounted with the real stores, which then start loading.
-function openList({ locale = 'en' as Locale, address = '/', realTransitions = false } = {}) {
+function openList({ locale = 'en', address = '/', realTransitions = false }: { locale?: Locale; address?: string; realTransitions?: boolean } = {}) {
   history.replaceState(null, '', address)
   const list = mount(TaskList, {
     attachTo: document.body,

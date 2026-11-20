@@ -32,6 +32,7 @@ const { checked } = defineProps<{
    * Makes the menu radio-style: the item with this value is shown as the current choice,
    * `null` when there is none yet. Left out, the menu has plain items.
    */
+  // eslint-disable-next-line vue/require-default-prop -- left out (undefined) means a plain menu, which a default would hide
   checked?: T | null
 }>()
 

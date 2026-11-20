@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, nextTick } from 'vue'
 
 import type { PageTaskRead, TaskRead } from '../api/generated/client'
+import { requestUrl } from '../test/requestUrl'
 import { useListViewStore } from './listView'
 import { SETTINGS_STORAGE_KEY, useSettingsStore } from './settings'
 import { useTasksStore } from './tasks'
@@ -66,7 +67,7 @@ function fakeApi({ abortsInTime = true } = {}) {
   const pending: PendingRequest[] = []
   const pendingFetch: typeof fetch = (input, init) =>
     new Promise<Response>((resolve, reject) => {
-      const url = new URL(String(input), 'http://localhost')
+      const url = requestUrl(input)
       pending.push({ query: Object.fromEntries(url.searchParams), resolve, reject })
       if (!abortsInTime) return
       init?.signal?.addEventListener('abort', () => {

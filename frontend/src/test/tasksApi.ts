@@ -2,6 +2,7 @@ import { flushPromises } from '@vue/test-utils'
 import { vi } from 'vitest'
 
 import type { PageTaskRead, TaskRead } from '../api/generated/client'
+import { requestUrl } from './requestUrl'
 
 export function task(title: string, overrides: Partial<TaskRead> = {}): TaskRead {
   return {
@@ -43,7 +44,7 @@ export function fakeTasksApi() {
   const pending: PendingRequest[] = []
   const pendingFetch: typeof fetch = (input, init) =>
     new Promise<Response>((resolve, reject) => {
-      const url = new URL(String(input), 'http://localhost')
+      const url = requestUrl(input)
       pending.push({ path: url.pathname, query: Object.fromEntries(url.searchParams), resolve, reject })
       init?.signal?.addEventListener('abort', () => {
         reject(new DOMException('The operation was aborted.', 'AbortError'))

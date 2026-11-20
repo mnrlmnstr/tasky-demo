@@ -178,6 +178,7 @@ describe('apiFetch errors', () => {
   ])('reports a request whose signal was aborted %s as aborted', async (_name, makeSignal, rejection) => {
     const signal = makeSignal()
     await new Promise((resolve) => setTimeout(resolve, 5))
+    // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- one case rejects with a string on purpose
     fakeFetch(() => Promise.reject(rejection))
 
     const failure = await failureOf(apiFetch('/api/v1/tasks', { signal }))
@@ -306,6 +307,7 @@ describe('apiFetch errors', () => {
   })
 
   it('reports a rejection that is not an Error as network', async () => {
+    // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- a non-Error rejection is the case under test
     fakeFetch(() => Promise.reject('offline'))
 
     const failure = await failureOf(apiFetch('/api/v1/tasks'))
