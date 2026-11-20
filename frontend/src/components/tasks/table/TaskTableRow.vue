@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Ellipsis, Trash2 } from 'lucide-vue-next'
+import { CircleAlert, Ellipsis, Trash2 } from 'lucide-vue-next'
 import { computed, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -48,7 +48,7 @@ useFocusOnLeave(useTemplateRef<HTMLElement>('row'), () => isDeleting.value || pi
         <TaskStatusMenu :status="status" :busy="isChangingStatus" :disabled="isBusy" @select="changeStatus" />
       </span>
     </td>
-    <td class="pr-4 font-medium" :class="cellClass">
+    <td class="min-w-48 pr-4 font-medium" :class="cellClass">
       <p data-testid="task-title" class="wrap-anywhere" :class="{ 'text-text-muted': status === 'done' }">
         <button
           type="button"
@@ -65,14 +65,23 @@ useFocusOnLeave(useTemplateRef<HTMLElement>('row'), () => isDeleting.value || pi
       <Badge :tone="PRIORITY_TONES[task.priority]">{{ t(`task.priority.${task.priority}`) }}</Badge>
     </td>
     <td class="pr-4 whitespace-nowrap text-text-muted" :class="cellClass">
-      <span data-testid="task-deadline" :class="{ 'text-danger-text': isOverdue }">
+      <span
+        data-testid="task-deadline"
+        class="inline-flex items-center gap-1"
+        :class="{ 'text-danger-text': isOverdue }"
+        :title="isOverdue ? t('task.overdue') : undefined"
+      >
         <template v-if="deadline === null">
           <span aria-hidden="true">—</span>
           <span class="sr-only">{{ t('task.noDeadline') }}</span>
         </template>
         <template v-else>
           {{ deadline }}
-          <template v-if="isOverdue"> · {{ t('task.overdue') }}</template>
+          <!-- The table keeps its columns narrow: an icon marks it, the words are for screen readers and the tooltip. -->
+          <template v-if="isOverdue">
+            <CircleAlert class="size-3.5 shrink-0" aria-hidden="true" />
+            <span class="sr-only"> · {{ t('task.overdue') }}</span>
+          </template>
         </template>
       </span>
     </td>
