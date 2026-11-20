@@ -37,6 +37,7 @@ const viewOptions = computed(() =>
 )
 
 const sortLabel = computed(() => t(SORT_MESSAGES[view.ordering]))
+const sortName = computed(() => t('toolbar.sortBy', { sort: sortLabel.value }))
 
 const sortItems = computed(() =>
   SORT_ORDER.map((ordering) => ({ value: ordering, label: t(SORT_MESSAGES[ordering]) })),
@@ -68,10 +69,14 @@ const sortItems = computed(() =>
 
       <DropdownMenu :items="sortItems" :checked="view.ordering" @select="view.ordering = $event">
         <template #trigger>
-          <!-- A long name is shortened to leave room for "Clear filters"; the accessible name stays whole. -->
-          <Button :aria-label="t('toolbar.sortBy', { sort: sortLabel })" class="min-w-0">
+          <!--
+            A long name is shortened to leave room for "Clear filters"; on a phone, next to the deadline filter,
+            only the icon is shown, like the deadline filter does while empty. The accessible name and the
+            tooltip always carry the whole name.
+          -->
+          <Button :aria-label="sortName" :title="sortName" class="min-w-0">
             <ArrowUpDown class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
-            <span class="truncate">{{ sortLabel }}</span>
+            <span class="truncate max-sm:hidden">{{ sortLabel }}</span>
           </Button>
         </template>
       </DropdownMenu>
