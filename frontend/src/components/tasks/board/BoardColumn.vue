@@ -135,19 +135,20 @@ watch(
       :class="{ 'opacity-50': column.status === 'reloading' }"
       :aria-busy="isRequesting ? 'true' : undefined"
     >
+      <!-- Outside the transition group: the placeholders pulse forever, so a leave would never end. -->
+      <template v-if="column.status === 'loading' && errorMessage === null">
+        <li
+          v-for="placeholder in SKELETON_CARDS"
+          :key="placeholder"
+          data-testid="board-column-loading"
+          aria-hidden="true"
+          class="animate-pulse rounded-control border border-border bg-surface p-3"
+        >
+          <div class="h-3.5 w-3/4 rounded-full bg-surface-muted" />
+          <div class="mt-3 h-3 w-1/3 rounded-full bg-surface-muted" />
+        </li>
+      </template>
       <TransitionGroup name="card">
-        <template v-if="column.status === 'loading' && errorMessage === null">
-          <li
-            v-for="placeholder in SKELETON_CARDS"
-            :key="placeholder"
-            data-testid="board-column-loading"
-            aria-hidden="true"
-            class="animate-pulse rounded-control border border-border bg-surface p-3"
-          >
-            <div class="h-3.5 w-3/4 rounded-full bg-surface-muted" />
-            <div class="mt-3 h-3 w-1/3 rounded-full bg-surface-muted" />
-          </li>
-        </template>
         <li
           v-for="task in column.items"
           :key="task.id"
