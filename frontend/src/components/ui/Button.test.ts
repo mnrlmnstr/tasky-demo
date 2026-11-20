@@ -48,7 +48,7 @@ describe('Button', () => {
     expect(button.attributes('aria-busy')).toBeUndefined()
   })
 
-  it('cannot be activated while disabled', async () => {
+  it('cannot be activated while disabled', () => {
     const button = mount(Button, { props: { disabled: true }, slots: { default: 'Save' } })
 
     button.element.click()
@@ -57,7 +57,7 @@ describe('Button', () => {
     expect(button.emitted('click')).toBeUndefined()
   })
 
-  it('announces itself as busy and cannot be activated while loading', async () => {
+  it('announces itself as busy and cannot be activated while loading', () => {
     const button = mount(Button, { props: { loading: true }, slots: { default: 'Save' } })
 
     button.element.click()
@@ -67,7 +67,7 @@ describe('Button', () => {
     expect(button.emitted('click')).toBeUndefined()
   })
 
-  it('shows progress but stays focusable while busy, leaving the click to its owner to ignore', async () => {
+  it('shows progress but stays focusable while busy, leaving the click to its owner to ignore', () => {
     const button = mount(Button, { props: { busy: true }, slots: { default: 'Retry' }, attachTo: document.body })
     button.element.focus()
 

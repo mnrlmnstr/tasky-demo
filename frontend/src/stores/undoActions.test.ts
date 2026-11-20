@@ -3,6 +3,7 @@ import { createPinia, disposePinia, getActivePinia, setActivePinia } from 'pinia
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { TaskRead } from '../api/generated/client'
+import { requestUrl } from '../test/requestUrl'
 import { pageOf, task } from '../test/tasksApi'
 import { useTasksStore } from './tasks'
 import { useUndoStore } from './undo'
@@ -27,7 +28,7 @@ function fakeServer(rows: TaskRead[], change: (request: SentRequest) => Response
   const answer: typeof fetch = async (input, init) => {
     const request: SentRequest = {
       method: init?.method ?? 'GET',
-      path: new URL(String(input), 'http://localhost').pathname,
+      path: requestUrl(input).pathname,
       body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
     }
     sent.push(request)

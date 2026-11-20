@@ -24,7 +24,7 @@ function serveTasks(rows: TaskRead[], { taskIsGone = false } = {}) {
       rows.shift()
       return json({ detail: 'Task not found' }, 404)
     }
-    rows[0] = { ...rows[0], ...JSON.parse(String(init.body)) }
+    rows[0] = { ...rows[0], ...JSON.parse(init.body as string) }
     return json(rows[0])
   }
   vi.stubGlobal('fetch', vi.fn(answer))

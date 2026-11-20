@@ -1,6 +1,7 @@
 import { vi } from 'vitest'
 
 import type { TaskRead } from '../api/generated/client'
+import { requestUrl } from './requestUrl'
 
 interface SentChange {
   method: string
@@ -40,7 +41,7 @@ export function taskServer(rows: TaskRead[]) {
   }
 
   const answer: typeof fetch = async (input, init) => {
-    const url = new URL(String(input), 'http://localhost')
+    const url = requestUrl(input)
     const { method, body } = init as RequestInit
     if (method === 'GET') {
       if (offline) throw new TypeError('Failed to fetch')

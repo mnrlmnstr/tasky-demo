@@ -32,6 +32,8 @@ export default defineConfig(({ mode }) => {
         // src/api/generated is orval output: regenerated with `npm run api:generate`, never edited by hand.
         exclude: ['src/**/*.test.ts', 'src/**/*.d.ts', 'src/api/generated/**'],
         reporter: ['text'],
+        // `npm run check` fails as soon as a line, branch or function goes untested.
+        thresholds: { 100: true },
       },
     },
   }

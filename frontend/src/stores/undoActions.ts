@@ -27,7 +27,7 @@ function offer(label: UndoLabel, reverse: () => Promise<unknown>): void {
 // Only the fields the action changed, with the values they had before it; `null` puts back an empty one.
 function previousValues(before: TaskRead, after: TaskRead): TaskUpdate {
   const changed = EDITABLE_FIELDS.filter((field) => before[field] !== after[field])
-  return Object.fromEntries(changed.map((field) => [field, before[field]])) as TaskUpdate
+  return Object.fromEntries(changed.map((field) => [field, before[field]]))
 }
 
 function offerUndoOfUpdate(label: UndoLabel, before: TaskRead, after: TaskRead): void {
