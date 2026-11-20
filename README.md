@@ -90,19 +90,19 @@ A single-page Vue 3 app served by the Vite dev server at http://localhost:8080. 
 
 - **Views** (switch in the toolbar):
   - list: one row per task with status, title, priority, deadline and creation date, paginated;
-  - board: three columns (To do, In progress, Done) with counts; drag a card to another column to change its status (the card's status menu does the same from the keyboard); each column shows up to 100 tasks and says how many it leaves out;
+  - board: three columns (To do, In progress, Done) with counts; drag a card to any place in any column: a line shows where it lands, and dragging switches the sorting to the custom order (from the keyboard, the card's status menu changes the column and has Move up and Move down); each column shows up to 100 tasks and says how many it leaves out;
   - table: sortable Deadline and Created headers and an actions menu on each row, paginated.
 - **Finding tasks:**
   - search by title (sent after a 300 ms pause in typing);
   - status filter: All, To do, In progress, Done (the board shows every status in its columns);
   - deadline filter: one day or a range picked in a calendar, with quick picks Today, This week and Overdue; either end can stay open;
-  - sorting: newest or oldest first, deadline soonest or latest first (tasks with no deadline go last);
+  - sorting: newest or oldest first, deadline soonest or latest first (tasks with no deadline go last), or the custom order, where new tasks start on top and list rows get a handle to drag them by (its menu has Move up and Move down);
   - "Clear filters" in the toolbar and on a filtered list that comes back empty.
 - **Changing tasks:**
   - create and edit in one form: title, description, status, priority, and a deadline with a calendar and a time field; the API's validation errors show next to their fields;
   - change the status from the status menu on a row or a card, or by dragging on the board;
   - delete from a row or a card, behind a confirmation (there is no restore);
-  - create, edit and status changes show a toast with **Undo** for 6 seconds (the timer pauses while the toast is hovered or focused). Delete has no undo.
+  - create, edit, status changes and moves show a toast with **Undo** for 6 seconds (the timer pauses while the toast is hovered or focused). Delete has no undo.
 - **Settings** (gear button): theme (light, dark, system), tasks per page (10, 20, 50), language (Українська, English; the first visit follows the browser), density (comfortable, compact), show the first line of descriptions in rows and cards.
 - **States:** loading and updating indicators, an empty list, "no tasks match your filters", and error messages by kind (network, server, task not found) with a **Try again** button.
 - Dates, relative times ("3 days ago") and plurals follow the chosen language; overdue deadlines are marked.
@@ -205,6 +205,7 @@ A task:
 | `status`      | `todo` \| `in_progress` \| `done` | default `todo`                          |
 | `priority`    | `low` \| `medium` \| `high`       | default `medium`                        |
 | `deadline`    | datetime with a time zone, or `null` | optional; returned in UTC            |
+| `position`    | number                            | place in the custom order, lower first; new tasks go on top; `PATCH` takes any finite number |
 | `created_at`  | datetime (UTC)                    | set by the server                       |
 | `updated_at`  | datetime (UTC)                    | set by the server on every update       |
 
@@ -216,7 +217,7 @@ Query parameters for `GET /tasks`:
 | ----------- | ------------- | -------------------------------------------------------------------------------------------------- |
 | `status`    | `in_progress` | filter by status                                                                                   |
 | `search`    | `звіт`        | case-insensitive substring of the title; `%` and `_` match literally                               |
-| `ordering`  | `-created_at` | `created_at` or `deadline`, prefix `-` for descending; default `-created_at`; no deadline sorts last |
+| `ordering`  | `-created_at` | `created_at` or `deadline`, prefix `-` for descending; default `-created_at`; no deadline sorts last; `position` is the custom order (ascending, ties newest first) |
 | `page`      | `1`           | page number, starting at 1 (default 1)                                                             |
 | `page_size` | `20`          | items per page, 1–100 (default 20)                                                                 |
 

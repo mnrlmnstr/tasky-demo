@@ -22,6 +22,8 @@ const emit = defineEmits<{
   dragend: []
   /** A status was picked from the card's menu: the keyboard way of dragging it. */
   move: [status: TaskStatus]
+  /** Move up or Move down was picked: the keyboard way of dragging it to another place. */
+  reorder: [delta: -1 | 1]
 }>()
 
 const { t } = useI18n()
@@ -81,7 +83,9 @@ useFocusOnLeave(useTemplateRef<HTMLElement>('card'), () => isBusy.value)
         :status="task.status"
         :busy="isMoving"
         :disabled="isBusy"
+        :moves="{ up: board.canMoveBy(task, -1), down: board.canMoveBy(task, 1) }"
         @select="emit('move', $event)"
+        @reorder="emit('reorder', $event)"
       />
       <p
         data-testid="task-title"

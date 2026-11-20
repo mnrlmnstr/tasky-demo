@@ -134,7 +134,7 @@ describe('sorting', () => {
     expect(sortTrigger(toolbar).attributes('data-variant')).toBe('secondary')
   })
 
-  it('offers the four sortings, with the current one checked', async () => {
+  it('offers the five sortings, with the current one checked', async () => {
     const toolbar = await mountToolbar()
 
     await openSort(toolbar)
@@ -144,9 +144,11 @@ describe('sorting', () => {
       'Oldest',
       'Deadline: soonest',
       'Deadline: latest',
+      'Custom order',
     ])
     expect(sortItems().map((item) => item.getAttribute('aria-checked'))).toEqual([
       'true',
+      'false',
       'false',
       'false',
       'false',
@@ -158,6 +160,7 @@ describe('sorting', () => {
     ['Oldest', 'created_at'],
     ['Deadline: soonest', 'deadline'],
     ['Deadline: latest', '-deadline'],
+    ['Custom order', 'position'],
   ])('sorts "%s" as %s', async (label, ordering) => {
     history.replaceState(null, '', label === 'Newest' ? '/?ordering=deadline' : '/')
     const toolbar = await mountToolbar()
@@ -189,6 +192,7 @@ describe('sorting', () => {
       'false',
       'false',
       'true',
+      'false',
     ])
   })
 
@@ -201,7 +205,7 @@ describe('sorting', () => {
     await pressKey(document.activeElement as Element, 'End')
     await pressKey(document.activeElement as Element, 'Enter')
 
-    expect(useListViewStore().ordering).toBe('-deadline')
+    expect(useListViewStore().ordering).toBe('position')
     expect(document.activeElement).toBe(trigger)
   })
 
@@ -216,6 +220,7 @@ describe('sorting', () => {
       'Старі',
       'Дедлайн: найближчі',
       'Дедлайн: найдальші',
+      'Власний порядок',
     ])
   })
 })

@@ -66,6 +66,8 @@ export interface TaskRead {
   description: string | null;
   /** The task's id. */
   id: string;
+  /** Place in the custom order (`ordering=position`): lower comes first. To move a task between two others, send a number between theirs, such as their midpoint. */
+  position: number;
   /** How urgent the task is. */
   priority: TaskPriority;
   /** Where the task stands. */
@@ -117,16 +119,19 @@ export const TaskOrdering = {
   '-created_at': '-created_at',
   deadline: 'deadline',
   '-deadline': '-deadline',
+  position: 'position',
 } as const;
 
 /**
- * Only the fields sent are applied; title, status and priority can't be null.
+ * Only the fields sent are applied; title, status, priority and position can't be null.
  */
 export interface TaskUpdate {
   /** When the task is due, with a timezone; returned in UTC. Send `null` to clear it. */
   deadline?: string | null;
   /** Free-text details. Send `null` to clear it. */
   description?: string | null;
+  /** Place in the custom order (`ordering=position`): lower comes first. To move a task between two others, send a number between theirs, such as their midpoint. Any finite number. */
+  position?: number;
   /** How urgent the task is. */
   priority?: TaskPriority;
   /** Where the task stands. */
@@ -150,7 +155,7 @@ export type ListTasksParams = {
   deadline_from?: string;
   /** Only tasks due before this instant (exclusive), with a timezone; must not be before `deadline_from`. */
   deadline_to?: string;
-  /** Sort by `created_at` or `deadline`; a leading `-` sorts descending. Tasks without a deadline come last either way. */
+  /** Sort by `created_at` or `deadline`; a leading `-` sorts descending. Tasks without a deadline come last either way. `position` is the custom order: ascending `position`, ties newest first. */
   ordering?: TaskOrdering;
   /**
    * Which page to return, from 1.
@@ -243,7 +248,8 @@ export const getCreateTaskUrl = () => {
 
 /**
  * Create a task. Only `title` is required; status defaults to `todo` and priority to
- * `medium`. A `deadline` must carry a timezone and is returned in UTC.
+ * `medium`. A `deadline` must carry a timezone and is returned in UTC. The new task goes to
+ * the top of the custom order.
  * @summary Create a task
  */
 export const createTask = async (taskCreate: TaskCreate, options?: Parameters<typeof apiFetch>[1]): Promise<TaskRead> => {
@@ -313,9 +319,10 @@ export const getUpdateTaskUrl = (taskId: string,) => {
 }
 
 /**
- * Change some fields of a task; fields left out keep their value. `title`, `status` and
- * `priority` can't be set to null; send `null` for `description` or `deadline` to clear it.
- * A deleted task answers `404`.
+ * Change some fields of a task; fields left out keep their value. `title`, `status`,
+ * `priority` and `position` can't be set to null; send `null` for `description` or
+ * `deadline` to clear it. To move a task in the custom order, send a `position` between
+ * those of its new neighbours. A deleted task answers `404`.
  * @summary Update a task
  */
 export const updateTask = async (taskId: string,

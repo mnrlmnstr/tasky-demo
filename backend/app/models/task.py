@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime
 from enum import StrEnum
 
-from sqlalchemy import DateTime, Enum, String, Text
+from sqlalchemy import DateTime, Double, Enum, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base
@@ -38,6 +38,9 @@ class Task(Base):
         _text_enum(TaskPriority, "priority"), default=TaskPriority.MEDIUM
     )
     deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    # The custom order, ascending. A move takes the midpoint of its new neighbours, so no other
+    # row changes. The default only serves rows built directly; the API puts new tasks on top.
+    position: Mapped[float] = mapped_column(Double, default=0.0, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, index=True
     )

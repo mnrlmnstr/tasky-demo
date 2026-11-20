@@ -46,6 +46,10 @@ UPDATE_EXAMPLES: dict[str, Example] = {
         "summary": "Clear the deadline",
         "value": {"deadline": None},
     },
+    "move": {
+        "summary": "Move the task in the custom order",
+        "value": {"position": 1.5},
+    },
     "several_fields": {
         "summary": "Change several fields",
         "value": {"title": "Prepare the annual report", "priority": "medium"},
@@ -60,7 +64,8 @@ async def create_task(
     data: Annotated[TaskCreate, Body(openapi_examples=CREATE_EXAMPLES)], session: Session
 ) -> TaskRead:
     """Create a task. Only `title` is required; status defaults to `todo` and priority to
-    `medium`. A `deadline` must carry a timezone and is returned in UTC."""
+    `medium`. A `deadline` must carry a timezone and is returned in UTC. The new task goes to
+    the top of the custom order."""
     task = await task_service.create_task(session, data)
     return TaskRead.model_validate(task)
 
@@ -93,9 +98,10 @@ async def update_task(
     data: Annotated[TaskUpdate, Body(openapi_examples=UPDATE_EXAMPLES)],
     session: Session,
 ) -> TaskRead:
-    """Change some fields of a task; fields left out keep their value. `title`, `status` and
-    `priority` can't be set to null; send `null` for `description` or `deadline` to clear it.
-    A deleted task answers `404`."""
+    """Change some fields of a task; fields left out keep their value. `title`, `status`,
+    `priority` and `position` can't be set to null; send `null` for `description` or
+    `deadline` to clear it. To move a task in the custom order, send a `position` between
+    those of its new neighbours. A deleted task answers `404`."""
     task = await task_service.update_task(session, task_id, data)
     return TaskRead.model_validate(task)
 

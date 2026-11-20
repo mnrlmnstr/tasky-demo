@@ -212,3 +212,15 @@ async def test_some_seeded_tasks_have_no_description(
     tasks = await all_tasks(client)
 
     assert 1 <= [task["description"] for task in tasks].count(None) <= 2
+
+
+@pytest.mark.anyio
+async def test_seeded_custom_order_starts_as_newest_first_with_distinct_positions(
+    seeded: datetime, client: httpx.AsyncClient
+) -> None:
+    params = {"ordering": "position", "page_size": 100}
+    by_position = (await client.get(TASKS, params=params)).json()["items"]
+    newest_first = await all_tasks(client)
+
+    assert [task["id"] for task in by_position] == [task["id"] for task in newest_first]
+    assert len({task["position"] for task in newest_first}) == len(newest_first)

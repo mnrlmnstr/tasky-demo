@@ -26,7 +26,7 @@ async function openApp(rows: TaskRead[], address = '/') {
 }
 
 function rows(): TaskRead[] {
-  return [task('Write'), task('Call'), task('Ship', { status: 'done' })]
+  return [task('Write', { position: 0 }), task('Call', { position: 1 }), task('Ship', { status: 'done', position: 5 })]
 }
 
 async function switchTo(page: VueWrapper, name: string) {
@@ -102,13 +102,19 @@ describe('views of the tasks', () => {
     done.element.dispatchEvent(dragEvent('drop'))
     await settle()
 
-    expect(server.changes).toEqual([{ method: 'PATCH', path: '/api/v1/tasks/id-Call', body: { status: 'done' } }])
+    expect(server.changes).toEqual([
+      { method: 'PATCH', path: '/api/v1/tasks/id-Call', body: { position: 4, status: 'done' } },
+    ])
     expect(boardTitles(page, 'done')).toEqual(['Call', 'Ship'])
 
     await useUndoStore().run()
     await settle()
 
-    expect(server.changes.at(-1)).toEqual({ method: 'PATCH', path: '/api/v1/tasks/id-Call', body: { status: 'todo' } })
+    expect(server.changes.at(-1)).toEqual({
+      method: 'PATCH',
+      path: '/api/v1/tasks/id-Call',
+      body: { status: 'todo', position: 1 },
+    })
     expect(boardTitles(page, 'todo')).toEqual(['Write', 'Call'])
   })
 
@@ -117,14 +123,16 @@ describe('views of the tasks', () => {
     const done = page.get('[data-testid="board-column"][data-status="done"]')
     page.findAll('[data-testid="board-card"]')[0].element.dispatchEvent(dragEvent('dragstart'))
     await settle()
+    done.element.dispatchEvent(dragEvent('dragover'))
     done.element.dispatchEvent(dragEvent('drop'))
     await settle()
 
     await switchTo(page, 'List')
 
+    // The drag left the view in the custom order, where Write now sits between Call and Ship.
     expect(page.findAll('main [data-testid="task-status"]').map((s) => s.attributes('aria-label'))).toEqual([
-      'Status: Done. Change status',
       'Status: To do. Change status',
+      'Status: Done. Change status',
       'Status: Done. Change status',
     ])
   })

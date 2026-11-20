@@ -154,7 +154,8 @@
           "created_at",
           "-created_at",
           "deadline",
-          "-deadline"
+          "-deadline",
+          "position"
         ],
         "title": "TaskOrdering",
         "type": "string"
@@ -219,6 +220,14 @@
             "title": "Id",
             "type": "string"
           },
+          "position": {
+            "description": "Place in the custom order (`ordering=position`): lower comes first. To move a task between two others, send a number between theirs, such as their midpoint.",
+            "examples": [
+              2.0
+            ],
+            "title": "Position",
+            "type": "number"
+          },
           "priority": {
             "$ref": "#/components/schemas/TaskPriority",
             "description": "How urgent the task is.",
@@ -258,6 +267,7 @@
           "status",
           "priority",
           "deadline",
+          "position",
           "created_at",
           "updated_at"
         ],
@@ -275,7 +285,7 @@
       },
       "TaskUpdate": {
         "additionalProperties": false,
-        "description": "Only the fields sent are applied; title, status and priority can't be null.",
+        "description": "Only the fields sent are applied; title, status, priority and position can't be null.",
         "properties": {
           "deadline": {
             "anyOf": [
@@ -307,6 +317,14 @@
               "Collect the numbers from finance and draft the summary."
             ],
             "title": "Description"
+          },
+          "position": {
+            "description": "Place in the custom order (`ordering=position`): lower comes first. To move a task between two others, send a number between theirs, such as their midpoint. Any finite number.",
+            "examples": [
+              1.5
+            ],
+            "title": "Position",
+            "type": "number"
           },
           "priority": {
             "$ref": "#/components/schemas/TaskPriority",
@@ -484,14 +502,14 @@
             }
           },
           {
-            "description": "Sort by `created_at` or `deadline`; a leading `-` sorts descending. Tasks without a deadline come last either way.",
+            "description": "Sort by `created_at` or `deadline`; a leading `-` sorts descending. Tasks without a deadline come last either way. `position` is the custom order: ascending `position`, ties newest first.",
             "in": "query",
             "name": "ordering",
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/TaskOrdering",
               "default": "-created_at",
-              "description": "Sort by `created_at` or `deadline`; a leading `-` sorts descending. Tasks without a deadline come last either way.",
+              "description": "Sort by `created_at` or `deadline`; a leading `-` sorts descending. Tasks without a deadline come last either way. `position` is the custom order: ascending `position`, ties newest first.",
               "examples": [
                 "deadline"
               ]
@@ -569,7 +587,7 @@
         ]
       },
       "post": {
-        "description": "Create a task. Only `title` is required; status defaults to `todo` and priority to\n`medium`. A `deadline` must carry a timezone and is returned in UTC.",
+        "description": "Create a task. Only `title` is required; status defaults to `todo` and priority to\n`medium`. A `deadline` must carry a timezone and is returned in UTC. The new task goes to\nthe top of the custom order.",
         "operationId": "createTask",
         "requestBody": {
           "content": {
@@ -756,7 +774,7 @@
         ]
       },
       "patch": {
-        "description": "Change some fields of a task; fields left out keep their value. `title`, `status` and\n`priority` can't be set to null; send `null` for `description` or `deadline` to clear it.\nA deleted task answers `404`.",
+        "description": "Change some fields of a task; fields left out keep their value. `title`, `status`,\n`priority` and `position` can't be set to null; send `null` for `description` or\n`deadline` to clear it. To move a task in the custom order, send a `position` between\nthose of its new neighbours. A deleted task answers `404`.",
         "operationId": "updateTask",
         "parameters": [
           {
@@ -784,6 +802,12 @@
                   "summary": "Clear the deadline",
                   "value": {
                     "deadline": null
+                  }
+                },
+                "move": {
+                  "summary": "Move the task in the custom order",
+                  "value": {
+                    "position": 1.5
                   }
                 },
                 "several_fields": {

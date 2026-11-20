@@ -6,6 +6,7 @@ import { nextTick } from 'vue'
 import type { TaskRead } from '../../../api/generated/client'
 import { CLOCK, type Clock } from '../../../i18n/clock'
 import { useBoardStore } from '../../../stores/board'
+import { useListViewStore } from '../../../stores/listView'
 import { useSettingsStore, type Locale } from '../../../stores/settings'
 import { useTaskFormStore } from '../../../stores/taskForm'
 import { tasksChanged } from '../../../stores/taskChanges'
@@ -47,10 +48,10 @@ function plainText(text: string): string {
 
 function rows(): TaskRead[] {
   return [
-    task('Write', { status: 'todo', priority: 'high', deadline: '2026-03-01T10:00:00Z' }),
-    task('Call', { status: 'todo', description: 'Ask about the invoice' }),
-    task('Plan', { status: 'in_progress', priority: 'low', deadline: '2026-03-20T10:00:00Z' }),
-    task('Ship', { status: 'done', deadline: '2026-03-01T10:00:00Z' }),
+    task('Write', { status: 'todo', priority: 'high', deadline: '2026-03-01T10:00:00Z', position: 0 }),
+    task('Call', { status: 'todo', description: 'Ask about the invoice', position: 1 }),
+    task('Plan', { status: 'in_progress', priority: 'low', deadline: '2026-03-20T10:00:00Z', position: 2 }),
+    task('Ship', { status: 'done', deadline: '2026-03-01T10:00:00Z', position: 3 }),
   ]
 }
 
@@ -76,16 +77,31 @@ function card(board: VueWrapper, title: string): DOMWrapper<Element> {
   return found
 }
 
-function dragEvent(type: string): Event {
+function dragEvent(type: string, clientY = 0): Event {
   const event = new Event(type, { bubbles: true, cancelable: true })
   Object.defineProperty(event, 'dataTransfer', { value: new DataTransfer() })
+  Object.defineProperty(event, 'clientY', { value: clientY })
   return event
 }
 
-async function drag(board: VueWrapper, title: string, to: string) {
+// Each card 80px high with 20px between them, from the top of its column: the middle of the first is at 40.
+function layOut(board: VueWrapper) {
+  for (const candidate of columns(board)) {
+    candidate.findAll('[data-testid="board-card"]').forEach((found, index) => {
+      found.element.getBoundingClientRect = () => ({ top: index * 100, height: 80 }) as DOMRect
+    })
+  }
+}
+
+async function drag(board: VueWrapper, title: string, to: string, clientY = 0) {
   card(board, title).element.dispatchEvent(dragEvent('dragstart'))
   await nextTick()
-  const over = dragEvent('dragover')
+  layOut(board)
+  return dragOver(board, to, clientY)
+}
+
+async function dragOver(board: VueWrapper, to: string, clientY = 0) {
+  const over = dragEvent('dragover', clientY)
   column(board, to).element.dispatchEvent(over)
   await nextTick()
   return over
@@ -294,18 +310,18 @@ describe('a card', () => {
 })
 
 describe('dragging a card to another column', () => {
-  it('marks the column under it as the place to drop, and not its own column', async () => {
+  it('marks the column under it as the place to drop, and not its own place', async () => {
     const { board } = await openBoard(rows())
 
     const over = await drag(board, 'Call', 'done')
     expect(over.defaultPrevented).toBe(true)
     expect(column(board, 'done').attributes('data-drop-target')).toBe('true')
 
-    const ownColumn = dragEvent('dragover')
-    column(board, 'todo').element.dispatchEvent(ownColumn)
-    await nextTick()
-    expect(ownColumn.defaultPrevented).toBe(false)
+    // Below the middle of Write, which is where Call already is.
+    const ownPlace = await dragOver(board, 'todo', 150)
+    expect(ownPlace.defaultPrevented).toBe(false)
     expect(column(board, 'todo').attributes('data-drop-target')).toBeUndefined()
+    expect(column(board, 'todo').find('[data-drop-line]').exists()).toBe(false)
   })
 
   it('clears the mark once the card leaves the column, but not while it passes over a card inside it', async () => {
@@ -333,7 +349,7 @@ describe('dragging a card to another column', () => {
     expect(column(board, 'done').attributes('data-drop-target')).toBeUndefined()
   })
 
-  it('moves the card there at once and sends its new status', async () => {
+  it('moves the card there at once and sends its new status and place', async () => {
     const { board, server } = await openBoard(rows())
     server.hold()
 
@@ -344,7 +360,9 @@ describe('dragging a card to another column', () => {
     expect(cardTitles(board, 'done')).toEqual(['Call', 'Ship'])
     expect(column(board, 'done').get('h2').text()).toBe('Done 2')
     expect(column(board, 'done').attributes('data-drop-target')).toBeUndefined()
-    expect(server.changes).toEqual([{ method: 'PATCH', path: '/api/v1/tasks/id-Call', body: { status: 'done' } }])
+    expect(server.changes).toEqual([
+      { method: 'PATCH', path: '/api/v1/tasks/id-Call', body: { position: 2, status: 'done' } },
+    ])
     expect(card(board, 'Call').attributes('aria-busy')).toBe('true')
   })
 
@@ -355,7 +373,7 @@ describe('dragging a card to another column', () => {
     await drop(board, 'in_progress')
     await settle()
 
-    expect(useUndoStore().label).toBe('statusChanged')
+    expect(useUndoStore().label).toBe('moved')
     expect(cardTitles(board, 'in_progress')).toEqual(['Call', 'Plan'])
   })
 
@@ -379,13 +397,163 @@ describe('dragging a card to another column', () => {
     expect(server.changes).toEqual([])
   })
 
-  it('ignores a drop on the column the card came from', async () => {
+  it('ignores a drop on the place the card came from', async () => {
     const { board, server } = await openBoard(rows())
 
-    card(board, 'Call').element.dispatchEvent(dragEvent('dragstart'))
+    await drag(board, 'Call', 'todo', 150)
     await drop(board, 'todo')
 
     expect(server.changes).toEqual([])
+  })
+})
+
+describe('dragging a card to a place', () => {
+  function lineAt(board: VueWrapper, status: string) {
+    return column(board, status)
+      .findAll('li[data-drop-line]')
+      .map((item) => [item.get('[data-testid="task-title"]').text(), item.attributes('data-drop-line')])
+  }
+
+  it('switches the board to the custom order as it starts, and the address follows', async () => {
+    const { board } = await openBoard(rows())
+    expect(location.search).not.toContain('ordering')
+
+    card(board, 'Call').element.dispatchEvent(dragEvent('dragstart'))
+    await nextTick()
+
+    expect(useListViewStore().ordering).toBe('position')
+    expect(location.search).toContain('ordering=position')
+  })
+
+  it('shows a line before the card under the pointer, or after the last, and none once it ends', async () => {
+    const { board } = await openBoard(rows())
+
+    await drag(board, 'Plan', 'todo', 0)
+    expect(lineAt(board, 'todo')).toEqual([['Write', 'before']])
+    await dragOver(board, 'todo', 120)
+    expect(lineAt(board, 'todo')).toEqual([['Call', 'before']])
+    await dragOver(board, 'todo', 1000)
+    expect(lineAt(board, 'todo')).toEqual([['Call', 'after']])
+
+    card(board, 'Plan').element.dispatchEvent(dragEvent('dragend'))
+    await nextTick()
+    expect(lineAt(board, 'todo')).toEqual([])
+  })
+
+  it('offers no place to a drag that did not start on this board', async () => {
+    const { board } = await openBoard(rows())
+
+    const over = await dragOver(board, 'todo')
+
+    expect(over.defaultPrevented).toBe(false)
+  })
+
+  it('clears the line when the card leaves the column', async () => {
+    const { board } = await openBoard(rows())
+    await drag(board, 'Plan', 'todo', 0)
+
+    column(board, 'todo').element.dispatchEvent(dragEvent('dragleave'))
+    await nextTick()
+
+    expect(lineAt(board, 'todo')).toEqual([])
+  })
+
+  it('drops the card between two others, at once, with the midpoint of their positions', async () => {
+    const { board, server } = await openBoard(rows())
+    server.hold()
+
+    await drag(board, 'Plan', 'todo', 120)
+    await drop(board, 'todo')
+
+    expect(cardTitles(board, 'todo')).toEqual(['Write', 'Plan', 'Call'])
+    expect(lineAt(board, 'todo')).toEqual([])
+    expect(server.changes).toEqual([
+      { method: 'PATCH', path: '/api/v1/tasks/id-Plan', body: { position: 0.5, status: 'todo' } },
+    ])
+  })
+
+  it('reorders the cards of one column, sending only the position', async () => {
+    const { board, server } = await openBoard(rows())
+
+    await drag(board, 'Write', 'todo', 1000)
+    await drop(board, 'todo')
+    await settle()
+
+    expect(server.changes.map((change) => change.body)).toEqual([{ position: 2 }])
+    expect(cardTitles(board, 'todo')).toEqual(['Call', 'Write'])
+  })
+
+  it('keeps the card between the two after the board loads again, and Undo puts it back', async () => {
+    const { board } = await openBoard(rows())
+    await drag(board, 'Plan', 'todo', 120)
+    await drop(board, 'todo')
+    await settle()
+
+    tasksChanged()
+    await settle()
+    expect(cardTitles(board, 'todo')).toEqual(['Write', 'Plan', 'Call'])
+
+    await useUndoStore().run()
+    await settle()
+    expect(cardTitles(board, 'todo')).toEqual(['Write', 'Call'])
+    expect(cardTitles(board, 'in_progress')).toEqual(['Plan'])
+  })
+})
+
+describe('the keyboard way to move a card up or down', () => {
+  function moveItems(): HTMLElement[] {
+    return Array.from(document.body.querySelectorAll<HTMLElement>('[role="menu"] [role="menuitem"]'))
+  }
+
+  async function openMoveMenu(board: VueWrapper, title: string) {
+    card(board, title).get<HTMLButtonElement>('[data-testid="task-status"]').element.click()
+    await settle()
+    return moveItems()
+  }
+
+  it('is Move up and Move down in the status menu, each off at its end of the column', async () => {
+    const { board } = await openBoard(rows())
+
+    const items = await openMoveMenu(board, 'Call')
+
+    expect(items.map((item) => [item.textContent?.trim(), item.hasAttribute('data-disabled')])).toEqual([
+      ['Move up', false],
+      ['Move down', true],
+    ])
+  })
+
+  it('moves the card one place, by the same rules, and keeps the focus on it', async () => {
+    const { board, server } = await openBoard(rows())
+
+    const [up] = await openMoveMenu(board, 'Call')
+    up.click()
+    await settle()
+
+    expect(server.changes.map((change) => change.body)).toEqual([{ position: -1 }])
+    expect(useListViewStore().ordering).toBe('position')
+    expect(cardTitles(board, 'todo')).toEqual(['Call', 'Write'])
+    expect(document.activeElement).toBe(card(board, 'Call').get('[data-testid="task-status"]').element)
+  })
+
+  it('moves the card down past the next one', async () => {
+    const { board, server } = await openBoard(rows())
+
+    const [, down] = await openMoveMenu(board, 'Write')
+    down.click()
+    await settle()
+
+    expect(server.changes.map((change) => change.body)).toEqual([{ position: 2 }])
+    expect(cardTitles(board, 'todo')).toEqual(['Call', 'Write'])
+  })
+
+  it('offers nothing while the card is moving', async () => {
+    const { board, server } = await openBoard(rows())
+    server.hold()
+    await pickStatus(board, 'Call', 'Done')
+
+    const items = await openMoveMenu(board, 'Call')
+
+    expect(items.every((item) => item.hasAttribute('data-disabled'))).toBe(true)
   })
 })
 

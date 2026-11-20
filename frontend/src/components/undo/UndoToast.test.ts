@@ -72,6 +72,7 @@ describe('undo toast', () => {
     ['created', 'Task created', 'Задачу створено'],
     ['updated', 'Task updated', 'Задачу оновлено'],
     ['statusChanged', 'Status changed', 'Статус змінено'],
+    ['moved', 'Task moved', 'Задачу переміщено'],
   ] as const)('names a "%s" action in English and in Ukrainian', async (label, english, ukrainian) => {
     const inEnglish = mountToast('en')
     inEnglish.undo.offer({ label, undo: done })

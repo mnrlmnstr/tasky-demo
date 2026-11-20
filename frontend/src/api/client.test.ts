@@ -13,6 +13,7 @@ const task: TaskRead = {
   deadline: null,
   created_at: '2026-01-05T10:00:00Z',
   updated_at: '2026-01-05T10:00:00Z',
+  position: 0,
 }
 
 // The backend is the one part replaced here: the generated functions and the HTTP layer run for real.

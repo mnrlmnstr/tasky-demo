@@ -3,11 +3,11 @@ import { tasksChanged } from './taskChanges'
 import { useUndoStore, type UndoLabel } from './undo'
 
 /*
- * One call after a successful create, edit, status or priority change offers its undo in the toast.
+ * One call after a successful create, edit, status or priority change, or move, offers its undo in the toast.
  * Delete is not undoable: it is guarded by a confirmation instead.
  */
 
-const EDITABLE_FIELDS = ['title', 'description', 'status', 'priority', 'deadline'] as const satisfies readonly (keyof TaskUpdate)[]
+const EDITABLE_FIELDS = ['title', 'description', 'status', 'priority', 'deadline', 'position'] as const satisfies readonly (keyof TaskUpdate)[]
 
 // Whether the undo went through or not, the tasks are reloaded, so they show what the server has.
 function offer(label: UndoLabel, reverse: () => Promise<unknown>): void {
@@ -53,4 +53,9 @@ export function offerUndoOfStatusChange(before: TaskRead, after: TaskRead): void
 /** After `updateTask` answered a priority change: `before` is the task as it was, `after` is the answer. */
 export function offerUndoOfPriorityChange(before: TaskRead, after: TaskRead): void {
   offerUndoOfUpdate('priorityChanged', before, after)
+}
+
+/** After `updateTask` answered a move in the custom order: Undo puts back the status and the position. */
+export function offerUndoOfMove(before: TaskRead, after: TaskRead): void {
+  offerUndoOfUpdate('moved', before, after)
 }

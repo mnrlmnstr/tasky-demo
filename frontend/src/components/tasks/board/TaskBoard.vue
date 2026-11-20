@@ -33,10 +33,16 @@ const announcement = computed(() => {
 
 const dragged = shallowRef<TaskRead | null>(null)
 
-function dropOn(status: TaskStatus): void {
+// A drag reorders: from its start the board shows the custom order, so the card lands where it is dropped.
+function startDrag(task: TaskRead): void {
+  dragged.value = task
+  board.showCustomOrder()
+}
+
+function dropOn(status: TaskStatus, index: number): void {
   const card = dragged.value as TaskRead
   dragged.value = null
-  void board.move(card, status)
+  void board.place(card, status, index)
 }
 
 const region = useTemplateRef<HTMLElement>('region')
@@ -44,14 +50,24 @@ provide(FOCUS_TASK_LIST, () => region.value?.focus({ preventScroll: true }))
 
 // Moved by its menu, the card is drawn anew in its new column. The focus follows it there, once the
 // closing menu has handed the focus back to the trigger it came from, which is gone.
-async function moveByMenu(task: TaskRead, status: TaskStatus): Promise<void> {
-  void board.move(task, status)
+async function focusCard(task: TaskRead, control: string): Promise<void> {
   await nextTick()
   setTimeout(() => {
     region.value
-      ?.querySelector<HTMLElement>(`[data-task-id="${CSS.escape(task.id)}"] [data-testid="task-status"]`)
+      ?.querySelector<HTMLElement>(`[data-task-id="${CSS.escape(task.id)}"] [data-testid="${control}"]`)
       ?.focus()
   }, 0)
+}
+
+function moveByMenu(task: TaskRead, status: TaskStatus): Promise<void> {
+  void board.move(task, status)
+  return focusCard(task, 'task-status')
+}
+
+// Moved up or down, the card is put in its new place, which moves the focus out of it.
+function reorderByMenu(task: TaskRead, delta: -1 | 1): Promise<void> {
+  void board.moveBy(task, delta)
+  return focusCard(task, 'task-status')
 }
 </script>
 
@@ -70,11 +86,12 @@ async function moveByMenu(task: TaskRead, status: TaskStatus): Promise<void> {
         :column="board.columns[status]"
         :dragged="dragged"
         class="w-[280px] shrink-0 snap-start lg:w-auto"
-        @drop="dropOn(status)"
+        @drop="dropOn(status, $event)"
         @retry="board.retry(status)"
-        @dragstart="dragged = $event"
+        @dragstart="startDrag"
         @dragend="dragged = null"
         @move="moveByMenu"
+        @reorder="reorderByMenu"
       />
     </div>
   </section>

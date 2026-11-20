@@ -193,9 +193,10 @@ DEMO_TASKS: tuple[DemoTask, ...] = (
 # fmt: on
 
 
-def _build(demo: DemoTask, now: datetime) -> Task:
+def _build(demo: DemoTask, now: datetime, position: float) -> Task:
     created_at = now - demo.created_ago
     return Task(
+        position=position,
         title=demo.title,
         description=demo.description,
         status=demo.status,
@@ -218,7 +219,9 @@ async def seed_demo_tasks(session: AsyncSession, now: datetime, *, reset: bool =
     elif await session.scalar(select(exists().select_from(Task))):
         logger.info("demo_seed_skipped", extra={"reason": "tasks_exist"})
         return 0
-    session.add_all([_build(demo, now) for demo in DEMO_TASKS])
+    # The custom order starts as newest first, the way the list opens.
+    newest_first = sorted(DEMO_TASKS, key=lambda demo: demo.created_ago)
+    session.add_all([_build(demo, now, place) for place, demo in enumerate(newest_first)])
     await session.commit()
     logger.info("demo_seed_created", extra={"count": len(DEMO_TASKS)})
     return len(DEMO_TASKS)
