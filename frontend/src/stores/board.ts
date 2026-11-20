@@ -2,17 +2,17 @@ import { defineStore } from 'pinia'
 import { computed, reactive, ref, shallowReactive, watch } from 'vue'
 
 import { listTasks, updateTask, type ListTasksParams, type TaskRead, type TaskStatus } from '../api/generated/client'
+import { TASK_STATUSES } from '../api/taskStatuses'
 import { failureKind, type ApiErrorKind } from '../api/http'
 import { latestOnly } from '../api/latestOnly'
 import { FIRST_PAGE, useListViewStore } from './listView'
-import { useTasksStore } from './tasks'
+import { onTasksChanged, tasksChanged } from './taskChanges'
 import { useUndoStore } from './undo'
 import { offerUndoOfStatusChange } from './undoActions'
 
 /** The most a column shows: the API's largest page. A longer column says how many it leaves out. */
 export const BOARD_PAGE_SIZE = 100
 
-const COLUMN_STATUSES = ['todo', 'in_progress', 'done'] as const satisfies readonly TaskStatus[]
 
 // Like the list: `loading` has nothing to show yet, `reloading` keeps the cards of the last answer.
 export type ColumnStatus = 'loading' | 'reloading' | 'ready' | 'failed'
@@ -48,23 +48,21 @@ function columnStatus(column: ColumnState): ColumnStatus {
 
 /**
  * The board: one list per status, each loaded on its own with the search and ordering of the view, but
- * never its status filter or page. It follows the view while started, and also reloads whenever the tasks
- * store is asked again, which is what every edit, delete and undo does.
+ * never its status filter or page. While started it follows the view and the tasks-changed signal.
  */
 export const useBoardStore = defineStore('board', () => {
   const view = useListViewStore()
-  const tasks = useTasksStore()
 
   const state = reactive(
     Object.fromEntries(
-      COLUMN_STATUSES.map((status): [TaskStatus, ColumnState] => [
+      TASK_STATUSES.map((status): [TaskStatus, ColumnState] => [
         status,
         { items: [], total: 0, answered: false, inFlight: false, error: null, latestRequest: 0 },
       ]),
     ) as Record<TaskStatus, ColumnState>,
   )
   const requests = Object.fromEntries(
-    COLUMN_STATUSES.map((status) => [
+    TASK_STATUSES.map((status) => [
       status,
       latestOnly((signal, params: ListTasksParams) => listTasks(params, { signal })),
     ]),
@@ -105,7 +103,7 @@ export const useBoardStore = defineStore('board', () => {
   }
 
   function reloadAll(): Promise<unknown> {
-    return Promise.all(COLUMN_STATUSES.map(load))
+    return Promise.all(TASK_STATUSES.map(load))
   }
 
   function start(): void {
@@ -114,10 +112,8 @@ export const useBoardStore = defineStore('board', () => {
     void reloadAll()
   }
 
-  // The list was not following the changes made here, so it is asked again for when it is shown next.
   function stop(): void {
     started.value = false
-    tasks.retry()
   }
 
   function retry(status: TaskStatus): void {
@@ -128,16 +124,40 @@ export const useBoardStore = defineStore('board', () => {
     if (started.value) void reloadAll()
   })
 
-  // Edits, deletes and undos all end by asking the tasks store again; the board takes that as its cue too.
-  tasks.$onAction(({ name }) => {
-    if (name === 'retry' && started.value) void reloadAll()
+  function removeEverywhere(id: TaskRead['id']): void {
+    for (const status of TASK_STATUSES) {
+      const column = state[status]
+      const kept = column.items.filter((item) => item.id !== id)
+      column.total -= column.items.length - kept.length
+      column.items = kept
+    }
+  }
+
+  // The card leaves every column at once, also when the reload that follows fails.
+  function forget(id: TaskRead['id']): void {
+    removeEverywhere(id)
+    moves.delete(id)
+  }
+
+  // What the server answered to a move, put in place before the columns are asked again: the move is
+  // then shown by the board's own state, whichever reload answers last, and also when none does.
+  function settle(after: TaskRead): void {
+    removeEverywhere(after.id)
+    const column = state[after.status]
+    column.items = [after, ...column.items]
+    column.total += 1
+  }
+
+  onTasksChanged(({ deleted }) => {
+    if (deleted !== undefined) forget(deleted)
+    if (started.value) void reloadAll()
   })
 
   // What the server last said, with the cards still on their way to another column moved there already.
   const columns = computed(
     () =>
       Object.fromEntries(
-        COLUMN_STATUSES.map((status) => {
+        TASK_STATUSES.map((status) => {
           const column = state[status]
           const kept = column.items.filter((item) => (moves.get(item.id)?.to ?? status) === status)
           const listed = new Set(column.items.map((item) => item.id))
@@ -166,12 +186,13 @@ export const useBoardStore = defineStore('board', () => {
     moves.set(task.id, { task, to })
     try {
       const after = await updateTask(task.id, { status: to })
+      settle(after)
       offerUndoOfStatusChange(task, after)
-      await Promise.all([load(from), load(to)])
+      tasksChanged()
     } catch (failure) {
       const kind = failureKind(failure)
       // The task is gone, so the card should go too.
-      if (kind === 'not_found') void reloadAll()
+      if (kind === 'not_found') tasksChanged({ deleted: task.id })
       useUndoStore().notifyError(kind)
     } finally {
       moves.delete(task.id)

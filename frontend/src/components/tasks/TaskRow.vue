@@ -90,8 +90,7 @@ useFocusOnLeave(useTemplateRef<HTMLElement>('row'), () => isDeleting.value || pi
             <span class="sr-only">{{ t('task.noDeadline') }}</span>
           </template>
           <template v-else>
-            {{ t('task.due', { date: deadline }) }}
-            <template v-if="isOverdue"> · {{ t('task.overdue') }}</template>
+            {{ t(isOverdue ? 'task.dueOverdue' : 'task.due', { date: deadline }) }}
           </template>
         </span>
         <span>

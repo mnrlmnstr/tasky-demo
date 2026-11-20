@@ -113,14 +113,21 @@ describe('apiFetch errors', () => {
   it.each([
     ['500 with a JSON body', () => jsonResponse({ detail: 'Internal server error' }, 500), 500],
     ['501', () => jsonResponse({ detail: 'Not implemented' }, 501), 501],
-    ['400', () => jsonResponse({ detail: 'Bad request' }, 400), 400],
-    ['409', () => jsonResponse({ detail: 'Conflict' }, 409), 409],
   ])('reports a %s response as server', async (_name, respond, status) => {
     fakeFetch(async () => respond())
 
     const failure = await failureOf(apiFetch('/api/v1/tasks'))
 
     expect(failure).toMatchObject({ kind: 'server', status, fieldErrors: [] })
+  })
+
+  // Refused, not failed: the server answered on purpose, so it is not reported as a server error.
+  it.each([400, 401, 403, 405, 409, 413, 429])('reports a %s response as client', async (status) => {
+    fakeFetch(async () => jsonResponse({ detail: 'Refused' }, status))
+
+    const failure = await failureOf(apiFetch('/api/v1/tasks'))
+
+    expect(failure).toMatchObject({ kind: 'client', status, fieldErrors: [] })
   })
 
   // The app reaches the API through a proxy (the dev server, the frontend container): with the backend

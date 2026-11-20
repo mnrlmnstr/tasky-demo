@@ -76,7 +76,7 @@ describe('delete in every view (adversary)', () => {
 
 })
 
-describe('the board and the hidden status filter (adversary, needs-decision)', () => {
+describe('the board and the hidden status filter (adversary, decided in #43)', () => {
   // #36 "the status filter is hidden in this view"; the board shows every status, so nothing is filtered
   // away, yet "Clear filters" is offered for the status filter the board neither shows nor applies.
   it('offers no "Clear filters" on the board when only a status filter is set', async () => {

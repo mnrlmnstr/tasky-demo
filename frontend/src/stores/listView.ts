@@ -3,13 +3,14 @@ import { createEventHook, useUrlSearchParams } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, nextTick, watch } from 'vue'
 
-import { TaskOrdering, TaskStatus, type ListTasksParams } from '../api/generated/client'
+import { TaskOrdering, type ListTasksParams } from '../api/generated/client'
+import { TASK_STATUSES } from '../api/taskStatuses'
 import { clockTimeZone, injectClock } from '../i18n/clock'
 import { oneOf, readStored, writeStored } from './storage'
 
 export const LIST_VIEW_STORAGE_KEY = 'tasky:list-view'
 
-export const STATUS_FILTERS = ['all', ...Object.values(TaskStatus)] as const
+export const STATUS_FILTERS = ['all', ...TASK_STATUSES] as const
 export type StatusFilter = (typeof STATUS_FILTERS)[number]
 
 export const ORDERINGS = Object.values(TaskOrdering)
@@ -79,11 +80,18 @@ function pageFromParam(value: unknown): number {
 
 const LOCAL_DAY = /^\d{4}-\d{2}-\d{2}$/
 
-// A real calendar day whose next day is one too, since the API is sent the midnight after the last day.
+// The API reads instants of years 1 to 9999 only. Local midnight of 1 January of year 1 is still in
+// year 0 in UTC for a zone east of it, so the first day kept is the one after it.
+const FIRST_DAY = parseDate('0001-01-02')
+
+// A real calendar day whose midnights, in any zone, are instants the API reads: it is sent local
+// midnight of the first day and the midnight after the last day.
 function dayFrom(value: unknown): string {
   if (typeof value !== 'string' || !LOCAL_DAY.test(value)) return NO_DAY
   try {
     const day = parseDate(value)
+    // The library moves a year 0 to year 1 rather than refusing it.
+    if (day.toString() !== value || day.compare(FIRST_DAY) < 0) return NO_DAY
     // Past the last day the library knows, adding a day stays on it.
     return day.add({ days: 1 }).compare(day) > 0 ? value : NO_DAY
   } catch {
@@ -234,11 +242,14 @@ export const useListViewStore = defineStore('listView', () => {
     change({ ...view.value, page: pageFromNumber(value) }, 'replace')
   }
 
+  // The board shows every status in its own column: it neither shows nor applies the status filter.
+  const appliesStatus = computed(() => viewMode.value !== 'board')
+
   // Ordering and page are not filters: they never turn a list with tasks into an empty one.
   const isFiltered = computed(
     () =>
       search.value !== DEFAULT_SEARCH ||
-      status.value !== DEFAULT_STATUS ||
+      (appliesStatus.value && status.value !== DEFAULT_STATUS) ||
       deadlineFrom.value !== NO_DAY ||
       deadlineTo.value !== NO_DAY,
   )
@@ -260,9 +271,18 @@ export const useListViewStore = defineStore('listView', () => {
   // whichever "Clear filters" was pressed.
   const filtersCleared = createEventHook<void>()
 
+  // On the board only the filters it applies are cleared: the status filter waits for the list.
   function clearFilters(): void {
     void filtersCleared.trigger()
-    filter({ search: DEFAULT_SEARCH, status: DEFAULT_STATUS, deadlineFrom: NO_DAY, deadlineTo: NO_DAY }, 'push')
+    filter(
+      {
+        search: DEFAULT_SEARCH,
+        ...(appliesStatus.value ? { status: DEFAULT_STATUS } : {}),
+        deadlineFrom: NO_DAY,
+        deadlineTo: NO_DAY,
+      },
+      'push',
+    )
   }
 
   const addressDescribesView = OWNED_PARAMS.some((name) => name in params)

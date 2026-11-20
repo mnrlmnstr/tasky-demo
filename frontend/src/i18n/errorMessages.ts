@@ -11,6 +11,7 @@ export const ERROR_MESSAGES: Record<ApiErrorKind, string> = {
   not_found: 'errors.not_found',
   validation: 'errors.generic',
   aborted: 'errors.generic',
+  client: 'errors.generic',
 }
 
 export function errorMessageKey(kind: ApiErrorKind): string {

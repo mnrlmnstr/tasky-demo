@@ -105,18 +105,34 @@ describe('deadline filter after a first day was clicked (adversary)', () => {
 
     expect(deadline()).toEqual(['2026-11-20', '2026-11-20'])
   })
+
+  // The same cause as above, for the last quick pick.
+  it('filters overdue when "Overdue" is pressed after one day was clicked', async () => {
+    const filter = await mountFilter()
+    await openFilter(filter)
+
+    await clickDay('2026-11-26')
+    await clickButton('Overdue')
+
+    expect(deadline()).toEqual(['', '2026-11-19'])
+  })
 })
 
-describe('the "Overdue" quick pick (adversary, needs-decision)', () => {
+describe('the "Overdue" quick pick (adversary, decided in #43)', () => {
   // #35 "quick picks: ... Overdue"; #13 marks a deadline overdue once it is past. At 01:30 on the 20th a
-  // task due at 18:00 that day is not overdue, yet "Overdue" asks the API for everything before the 21st.
-  it('asks for nothing due after now', async () => {
+  // task due at 18:00 that day is not overdue, yet "Overdue" asked the API for everything before the 21st.
+  // Decided in #43: overdue means due before today, in the days the date filter works in, so the API is
+  // asked for what is due before today's local midnight, with no first bound; the status is left to its filter.
+  it('asks for everything due before the local midnight starting today, and nothing due after now', async () => {
     const filter = await mountFilter()
     await openFilter(filter)
 
     await clickButton('Overdue')
 
-    const to = useListViewStore().queryParams.deadline_to
-    expect(new Date(to ?? '').getTime()).toBeLessThanOrEqual(KYIV_NIGHT.now().getTime())
+    const query = useListViewStore().queryParams
+    expect(query.deadline_from).toBeUndefined()
+    expect(query.status).toBeUndefined()
+    expect(query.deadline_to).toBe('2026-11-19T22:00:00.000Z')
+    expect(new Date(query.deadline_to ?? '').getTime()).toBeLessThanOrEqual(KYIV_NIGHT.now().getTime())
   })
 })

@@ -59,7 +59,9 @@ const firstShown = computed<DateValue>(() => {
   return day === '' ? today.value : parseDate(day)
 })
 
+// Whatever was being picked is dropped first: closing the calendar must not then filter by a day picked alone.
 function apply(first: DateValue | undefined, last: DateValue | undefined): void {
+  range.value = { start: undefined, end: undefined }
   view.setDeadline(first?.toString() ?? '', last?.toString() ?? '')
   open.value = false
 }
@@ -91,9 +93,10 @@ function pickThisWeek(): void {
   apply(first, first.add({ days: 6 }))
 }
 
-// Everything due up to the end of today, with no first day.
+// Everything due before today, with no first day: the last day is yesterday, so the API is asked for
+// what is due before today's local midnight. Done tasks stay unless the status filter leaves them out.
 function pickOverdue(): void {
-  apply(undefined, today.value)
+  apply(undefined, today.value.subtract({ days: 1 }))
 }
 
 function clear(): void {
@@ -110,13 +113,15 @@ const CLEAR_CLASS = `${SMALL_CLASS} shrink-0 text-text hover:bg-surface-muted`
   <PopoverRoot v-model:open="open">
     <PopoverTrigger as-child>
       <!-- Only the icon while nothing is filtered, so the toolbar keeps to one row where it did before. -->
+      <!-- On a phone the days shorten before anything next to them is pushed over; the name and tooltip keep them whole. -->
       <Button
         data-testid="deadline-filter"
         :aria-label="label"
         :title="label"
+        class="max-sm:min-w-0 max-sm:px-2.5"
       >
-        <CalendarDays class="size-4 text-text-muted" aria-hidden="true" />
-        <span v-if="daysText !== null" class="whitespace-nowrap">{{ daysText }}</span>
+        <CalendarDays class="size-4 shrink-0 text-text-muted" aria-hidden="true" />
+        <span v-if="daysText !== null" class="whitespace-nowrap max-sm:truncate">{{ daysText }}</span>
       </Button>
     </PopoverTrigger>
     <PopoverPortal>

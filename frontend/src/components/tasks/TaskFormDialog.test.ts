@@ -121,7 +121,36 @@ function labelOf(field: HTMLElement): string | undefined {
 const titleField = () => get<HTMLInputElement>('[data-field="title"] input')
 const descriptionField = () => get<HTMLTextAreaElement>('[data-field="description"] textarea')
 const dateButton = () => get<HTMLButtonElement>('[data-testid="deadline-date"]')
-const timeField = () => get<HTMLInputElement>('[data-testid="deadline-time"]')
+const timeField = () => get('[data-testid="deadline-time"]')
+const timeSegments = () => [...timeField().querySelectorAll<HTMLElement>('[role="spinbutton"]')]
+
+// What the time field holds, `HH:MM`, as its form value carries it; empty for no time.
+function timeOf(): string {
+  return timeField().querySelector('input')?.value.slice(0, 5) ?? ''
+}
+
+function timeDisabled(): boolean {
+  return timeField().hasAttribute('data-disabled')
+}
+
+async function press(segment: HTMLElement, keys: string[]) {
+  segment.focus()
+  for (const key of keys) segment.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
+  await flushPromises()
+}
+
+// Typed segment by segment, as on a keyboard; an empty text clears both segments.
+async function setTime(text: string) {
+  const [hour, minute] = timeSegments()
+  if (text === '') {
+    await press(minute, ['Backspace', 'Backspace'])
+    await press(hour, ['Backspace', 'Backspace'])
+    return
+  }
+  const [hh, mm] = text.split(':')
+  await press(hour, [...hh])
+  await press(minute, [...mm])
+}
 const submitButton = () => get<HTMLButtonElement>('[data-testid="dialog-footer"] button[data-variant="primary"]')
 const cancelButton = () => get<HTMLButtonElement>('[data-testid="dialog-footer"] button[data-variant="secondary"]')
 
@@ -207,7 +236,7 @@ describe('TaskFormDialog', () => {
       expect(selected('Priority')).toBe('Medium')
       expect(dateButton().textContent.trim()).toBe('Pick a date')
       expect(dateButton().getAttribute('aria-label')).toBe('Deadline date')
-      expect(timeField().value).toBe('')
+      expect(timeOf()).toBe('')
       expect(submitButton().textContent.trim()).toBe('Create')
       expect(cancelButton().textContent.trim()).toBe('Cancel')
     })
@@ -265,7 +294,7 @@ describe('TaskFormDialog', () => {
 
       expect(dateButton().textContent.trim()).toBe('Mar 5, 2026')
       expect(dateButton().getAttribute('aria-label')).toBe('Deadline date: Mar 5, 2026')
-      expect(timeField().value).toBe('18:30')
+      expect(timeOf()).toBe('18:30')
     })
 
     it('shows a deadline that cannot be read as no deadline', async () => {
@@ -274,7 +303,7 @@ describe('TaskFormDialog', () => {
       await openEdit(task('Write report', { deadline: 'soon' }))
 
       expect(dateButton().textContent.trim()).toBe('Pick a date')
-      expect(timeField().value).toBe('')
+      expect(timeOf()).toBe('')
     })
 
     it('speaks Ukrainian when the language is Ukrainian', async () => {
@@ -319,6 +348,26 @@ describe('TaskFormDialog', () => {
   })
 
   describe('deadline', () => {
+    it('shows the time on a 24-hour clock in English too', async () => {
+      fakeServer()
+      await openEdit(task('Write report', { deadline: '2026-03-05T16:30:00Z' }))
+
+      expect(timeSegments().map((segment) => segment.textContent.trim())).toEqual(['18', '30'])
+      expect(timeField().textContent).not.toMatch(/PM/)
+    })
+
+    it('takes a time typed on a 24-hour clock', async () => {
+      const server = fakeServer()
+      await openCreate('uk')
+      await type(titleField(), 'Звіт')
+      await pickDay('2026-03-10')
+      await setTime('07:05')
+
+      await submit()
+
+      expect(server.changes[0].body).toMatchObject({ deadline: '2026-03-10T05:05:00.000Z' })
+    })
+
     it('opens a calendar on the month of the deadline', async () => {
       fakeServer()
       await openEdit(task('Write report', { deadline: '2026-03-05T16:30:00Z' }))
@@ -364,19 +413,19 @@ describe('TaskFormDialog', () => {
       await pickDay('2026-03-10')
 
       expect(dateButton().textContent.trim()).toBe('Mar 10, 2026')
-      expect(timeField().value).toBe('18:30')
+      expect(timeOf()).toBe('18:30')
       expect(document.body.querySelector('[data-testid="deadline-calendar"]')).toBeNull()
     })
 
     it('keeps the time off until a day is picked, then means the end of that day', async () => {
       fakeServer()
       await openCreate()
-      expect(timeField().disabled).toBe(true)
+      expect(timeDisabled()).toBe(true)
 
       await pickDay('2026-03-10')
 
-      expect(timeField().disabled).toBe(false)
-      expect(timeField().value).toBe('23:59')
+      expect(timeDisabled()).toBe(false)
+      expect(timeOf()).toBe('23:59')
     })
 
     it('offers to clear the deadline only when there is one', async () => {
@@ -397,8 +446,8 @@ describe('TaskFormDialog', () => {
       await flushPromises()
 
       expect(dateButton().textContent.trim()).toBe('Pick a date')
-      expect(timeField().value).toBe('')
-      expect(timeField().disabled).toBe(true)
+      expect(timeOf()).toBe('')
+      expect(timeDisabled()).toBe(true)
       expect(document.activeElement).toBe(dateButton())
     })
   })
@@ -439,7 +488,7 @@ describe('TaskFormDialog', () => {
       await openCreate()
       await type(titleField(), 'Write report')
       await pickDay('2026-03-10')
-      await type(timeField(), '18:30')
+      await setTime('18:30')
 
       await submit()
 
@@ -451,7 +500,9 @@ describe('TaskFormDialog', () => {
       await openCreate()
       await type(titleField(), 'Write report')
       await pickDay('2026-03-10')
-      await type(timeField(), '')
+      await setTime('18:30')
+      await setTime('')
+      expect(timeOf()).toBe('')
 
       await submit()
 
@@ -568,21 +619,69 @@ describe('TaskFormDialog', () => {
 
       expect(errorOf('title')).toBe('Введіть назву.')
     })
+
+    // The same cause as the emoji: the form counted UTF-16 units where the API counts characters.
+    it('does not send 201 emoji, and sends 200', async () => {
+      const server = fakeServer()
+      await openCreate()
+      await type(titleField(), '😀'.repeat(201))
+      await submit()
+      expect(server.changes).toEqual([])
+      expect(errorOf('title')).toBe('The title can be at most 200 characters long.')
+
+      await type(titleField(), '😀'.repeat(200))
+      await submit()
+
+      expect(server.changes).toHaveLength(1)
+    })
+
+    it('trims what the API trims, so a lone U+FEFF is a title and separators around one are not part of it', async () => {
+      const server = fakeServer()
+      await openCreate()
+      await type(titleField(), '\ufeff')
+      await submit()
+      expect(errorOf('title')).toBe('')
+
+      mounted?.unmount()
+      await openCreate()
+      await type(titleField(), '\x1c\x85 Write report\u3000\x1f')
+      await submit()
+
+      expect(server.changes.map((change) => (change.body as TaskRead).title)).toEqual(['\ufeff', 'Write report'])
+    })
+
+    it('asks for a title made only of what the API trims', async () => {
+      const server = fakeServer()
+      await openCreate()
+      await type(titleField(), '\x1c\x85\u2028')
+
+      await submit()
+
+      expect(server.changes).toEqual([])
+      expect(errorOf('title')).toBe('Enter a title.')
+    })
   })
 
   describe('saving', () => {
-    it('shows progress on the disabled button until the API answers', async () => {
+    it('shows progress on the buttons until the API answers, keeping the focus where it was', async () => {
       const held = heldAnswer()
       fakeServer(held.answer)
       await openCreate()
       await type(titleField(), 'Write report')
+      submitButton().focus()
 
       await submit()
 
-      expect(submitButton().disabled).toBe(true)
+      expect(submitButton().disabled).toBe(false)
+      expect(submitButton().getAttribute('aria-disabled')).toBe('true')
       expect(submitButton().getAttribute('aria-busy')).toBe('true')
       expect(submitButton().querySelector('[data-testid="button-spinner"]')).not.toBeNull()
-      expect(cancelButton().disabled).toBe(true)
+      expect(cancelButton().getAttribute('aria-disabled')).toBe('true')
+      expect(document.activeElement).toBe(submitButton())
+
+      cancelButton().click()
+      await settle()
+      expect(findDialog()).not.toBeNull()
 
       held.release(json(task('Write report'), 201))
       await settle()
@@ -680,7 +779,7 @@ describe('TaskFormDialog', () => {
     it('sends a new time on the same day as the instant it means', async () => {
       const server = fakeServer()
       await openEdit(report)
-      await type(timeField(), '19:45')
+      await setTime('19:45')
 
       await submit()
 
@@ -690,7 +789,7 @@ describe('TaskFormDialog', () => {
     it('sends a day in summer with the summer offset of the zone', async () => {
       const server = fakeServer()
       await openEdit(task('Write report', { deadline: '2026-07-01T15:30:00Z' }))
-      expect(timeField().value).toBe('18:30')
+      expect(timeOf()).toBe('18:30')
 
       await pickDay('2026-07-02')
       await submit()
@@ -711,8 +810,8 @@ describe('TaskFormDialog', () => {
     it('does not send a deadline that was changed and put back', async () => {
       const server = fakeServer()
       await openEdit(report)
-      await type(timeField(), '19:45')
-      await type(timeField(), '18:30')
+      await setTime('19:45')
+      await setTime('18:30')
       await choose('Status', 'Done')
 
       await submit()
@@ -853,6 +952,30 @@ describe('TaskFormDialog', () => {
       expect(formErrors()).toEqual(['Something went wrong. Please try again.'])
     })
 
+    it('links each message to its field or group', async () => {
+      fakeServer(() =>
+        invalid(['description', 'value_error'], ['status', 'enum'], ['priority', 'enum'], ['deadline', 'timezone_aware']),
+      )
+      await openCreate()
+      await type(titleField(), 'Write report')
+
+      await submit()
+
+      const described = (control: Element) => get(`#${control.getAttribute('aria-describedby')}`).textContent.trim()
+      expect(described(descriptionField())).toBe(errorOf('description'))
+      expect(described(get('[role="group"][aria-label="Status"]'))).toBe(errorOf('status'))
+      expect(described(get('[role="group"][aria-label="Priority"]'))).toBe(errorOf('priority'))
+      expect(described(get('[role="group"][aria-label="Deadline"]'))).toBe(errorOf('deadline'))
+    })
+
+    it('links no message while there is none', async () => {
+      fakeServer()
+      await openCreate()
+
+      expect(descriptionField().hasAttribute('aria-describedby')).toBe(false)
+      expect(get('[role="group"][aria-label="Deadline"]').hasAttribute('aria-describedby')).toBe(false)
+    })
+
     it('takes a message away when its field changes', async () => {
       fakeServer(() =>
         invalid(
@@ -978,6 +1101,28 @@ describe('TaskFormDialog', () => {
       await submit()
 
       expect(formErrors()).toEqual(['На сервері сталася помилка. Спробуйте ще раз.'])
+    })
+
+    it('puts the focus on the message when the failure is about no field', async () => {
+      fakeServer(() => json({}, 500))
+      await openCreate()
+      await type(titleField(), 'Write report')
+      submitButton().focus()
+
+      await submit()
+
+      expect(document.activeElement).toBe(get('[data-testid="form-error"]'))
+    })
+
+    // The same cause as the list's message: any 4xx but 404 and 422 was read as a server error.
+    it.each([400, 401, 403, 409, 429])('explains a %s answer with the generic message', async (status) => {
+      fakeServer(() => json({ detail: 'Refused' }, status))
+      await openCreate()
+      await type(titleField(), 'Write report')
+
+      await submit()
+
+      expect(formErrors()).toEqual(['Something went wrong. Please try again.'])
     })
 
     it('counts a failure it does not recognise as a server failure', async () => {

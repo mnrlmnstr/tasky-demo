@@ -18,11 +18,26 @@ export function isFormField(field: string): field is FormField {
   return (FORM_FIELDS as readonly string[]).includes(field)
 }
 
+// What the API strips from both ends of a title: Python's `str.strip()` whitespace. Unlike JavaScript's
+// `trim()` it takes the separators U+001C to U+001F and U+0085, and leaves U+FEFF.
+const API_WHITESPACE = '[\t-\r\x1c-\x20\x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]'
+const API_STRIPPED = new RegExp(`^${API_WHITESPACE}+|${API_WHITESPACE}+$`, 'g')
+
+/** The title as the API stores it. */
+export function apiTitle(title: string): string {
+  return title.replace(API_STRIPPED, '')
+}
+
+// The API counts characters (code points), so an emoji written with two UTF-16 units counts once.
+function characterCount(text: string): number {
+  return [...text].length
+}
+
 /** What is wrong with the title as typed, as a message key; `null` when the API would take it. */
 export function titleProblem(title: string): string | null {
-  const trimmed = title.trim()
-  if (trimmed === '') return 'form.errors.titleRequired'
-  if (trimmed.length > TITLE_MAX_LENGTH) return 'form.errors.titleTooLong'
+  const stored = apiTitle(title)
+  if (stored === '') return 'form.errors.titleRequired'
+  if (characterCount(stored) > TITLE_MAX_LENGTH) return 'form.errors.titleTooLong'
   return null
 }
 

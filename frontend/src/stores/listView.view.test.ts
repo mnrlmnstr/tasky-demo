@@ -115,6 +115,24 @@ describe('the way the tasks are shown', () => {
     expect(view.isFiltered).toBe(false)
   })
 
+  it('does not count the status filter as a filter on the board, which does not apply it', () => {
+    addressIs('/?status=done&view=board')
+    const view = loadStore()
+
+    expect(view.isFiltered).toBe(false)
+    view.view = 'list'
+    expect(view.isFiltered).toBe(true)
+  })
+
+  it('keeps the status filter for the list when the filters are cleared on the board', () => {
+    addressIs('/?status=done&search=report&view=board')
+    const view = loadStore()
+
+    view.clearFilters()
+
+    expect([view.search, view.status]).toEqual(['', 'done'])
+  })
+
   it('stays when the filters are cleared', () => {
     addressIs('/?search=report&view=board')
     const view = loadStore()

@@ -93,7 +93,7 @@ watch(isFailure, async (failed) => {
         <Button
           v-if="undo.label !== null"
           variant="ghost"
-          :loading="undo.running"
+          :busy="undo.running"
           class="h-8! shrink-0 px-2.5! text-accent-text!"
           @click="undo.run()"
         >

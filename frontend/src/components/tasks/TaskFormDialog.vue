@@ -12,11 +12,12 @@ import {
   type TaskStatus,
   type TaskUpdate,
 } from '../../api/generated/client'
-import { ApiError, type FieldError } from '../../api/http'
+import { ApiError, failureKind, type FieldError } from '../../api/http'
+import { TASK_STATUSES } from '../../api/taskStatuses'
 import { useClock } from '../../i18n/clock'
 import { errorMessageKey } from '../../i18n/errorMessages'
 import { useTaskFormStore } from '../../stores/taskForm'
-import { useTasksStore } from '../../stores/tasks'
+import { tasksChanged } from '../../stores/taskChanges'
 import { offerUndoOfCreate, offerUndoOfEdit } from '../../stores/undoActions'
 import Button from '../ui/Button.vue'
 import { FOCUS_RING_CLASS } from '../ui/control'
@@ -25,6 +26,7 @@ import SegmentedControl from '../ui/SegmentedControl.vue'
 import { editingTimeZone, toDeadlineParts, toTimestamp } from './deadline'
 import DeadlineField from './DeadlineField.vue'
 import {
+  apiTitle,
   FORM_FIELDS,
   isFormField,
   serverErrorMessage,
@@ -33,7 +35,6 @@ import {
   type FormField,
 } from './taskFormErrors'
 
-const STATUSES: TaskStatus[] = ['todo', 'in_progress', 'done']
 const PRIORITIES: TaskPriority[] = ['low', 'medium', 'high']
 
 /** What the fields hold. */
@@ -51,12 +52,12 @@ type Payload = Required<TaskUpdate>
 
 const { t } = useI18n()
 const form = useTaskFormStore()
-const tasks = useTasksStore()
 const timeZone = editingTimeZone(useClock().timeZone)
 
 const formId = useId()
 const formElement = useTemplateRef<HTMLFormElement>('formElement')
 const titleField = useTemplateRef<HTMLInputElement>('titleField')
+const failureBlock = useTemplateRef<HTMLElement>('failureBlock')
 
 // A deadline that cannot be read is edited like no deadline at all, as the list shows it.
 function valuesOf(task: TaskRead | null): Values {
@@ -74,7 +75,7 @@ function valuesOf(task: TaskRead | null): Values {
 function payloadOf(fields: Values): Payload {
   const description = fields.description.trim()
   return {
-    title: fields.title.trim(),
+    title: apiTitle(fields.title),
     description: description === '' ? null : description,
     status: fields.status,
     priority: fields.priority,
@@ -174,9 +175,14 @@ const formMessages = computed(() => [
   ),
 ])
 
+// The first field at fault, or with none the message that explains the failure.
 async function focusFirstInvalid(): Promise<void> {
   await nextTick()
   const field = FORM_FIELDS.find((candidate) => errors[candidate])
+  if (field === undefined) {
+    failureBlock.value?.focus()
+    return
+  }
   formElement.value
     ?.querySelector<HTMLElement>(`[data-field="${field}"] :is(input, textarea, button)`)
     ?.focus()
@@ -196,8 +202,9 @@ function filledFields(payload: Payload): TaskCreate {
   }
 }
 
-async function showFailure(reason: unknown, editing: boolean): Promise<void> {
-  const kind = reason instanceof ApiError ? reason.kind : 'server'
+async function showFailure(reason: unknown, before: TaskRead | null): Promise<void> {
+  const editing = before !== null
+  const kind = failureKind(reason)
   const fieldErrors = reason instanceof ApiError ? reason.fieldErrors : []
   for (const error of fieldErrors) {
     if (isFormField(error.field)) errors[error.field] ??= serverErrorMessage(error)
@@ -205,7 +212,7 @@ async function showFailure(reason: unknown, editing: boolean): Promise<void> {
   }
   if (kind === 'not_found' && editing) {
     gone.value = true
-    tasks.retry()
+    tasksChanged({ deleted: before.id })
   }
   // Creating has no task to be missing: a 404 there is the server's fault.
   const shown = kind === 'not_found' && !editing ? 'server' : kind
@@ -236,18 +243,18 @@ async function submit(): Promise<void> {
     saved = before === null ? await createTask(filledFields(payload)) : await updateTask(before.id, changes)
   } catch (reason) {
     saving.value = false
-    await showFailure(reason, before !== null)
+    await showFailure(reason, before)
     return
   }
   saving.value = false
   form.close()
-  tasks.retry()
+  tasksChanged()
   if (before === null) offerUndoOfCreate(saved)
   else offerUndoOfEdit(before, saved)
 }
 
 const statusOptions = computed(() =>
-  STATUSES.map((status) => ({ value: status, label: t(`task.status.${status}`) })),
+  TASK_STATUSES.map((status) => ({ value: status, label: t(`task.status.${status}`) })),
 )
 const priorityOptions = computed(() =>
   PRIORITIES.map((priority) => ({ value: priority, label: t(`task.priority.${priority}`) })),
@@ -300,10 +307,14 @@ const ERROR_CLASS = 'text-[13px] leading-5 text-danger-text'
           v-model="values.description"
           rows="3"
           :aria-invalid="fieldMessages.description !== ''"
+          :aria-describedby="fieldMessages.description ? `${formId}-description-error` : undefined"
           class="min-h-20 resize-y py-2"
           :class="INPUT_CLASS"
         />
-        <p v-if="fieldMessages.description" data-testid="error-description" :class="ERROR_CLASS">
+        <p
+          v-if="fieldMessages.description"
+          :id="`${formId}-description-error`"
+          data-testid="error-description" :class="ERROR_CLASS">
           {{ fieldMessages.description }}
         </p>
       </div>
@@ -311,15 +322,28 @@ const ERROR_CLASS = 'text-[13px] leading-5 text-danger-text'
       <div class="flex flex-wrap gap-x-6 gap-y-4">
         <div data-field="status" class="flex flex-col items-start gap-1.5">
           <span :class="LABEL_CLASS" aria-hidden="true">{{ t('form.status') }}</span>
-          <SegmentedControl v-model="values.status" :options="statusOptions" :label="t('form.status')" />
-          <p v-if="fieldMessages.status" data-testid="error-status" :class="ERROR_CLASS">
+          <SegmentedControl
+            v-model="values.status"
+            :options="statusOptions"
+            :label="t('form.status')"
+            :aria-describedby="fieldMessages.status ? `${formId}-status-error` : undefined"
+          />
+          <p v-if="fieldMessages.status" :id="`${formId}-status-error`" data-testid="error-status" :class="ERROR_CLASS">
             {{ fieldMessages.status }}
           </p>
         </div>
         <div data-field="priority" class="flex flex-col items-start gap-1.5">
           <span :class="LABEL_CLASS" aria-hidden="true">{{ t('form.priority') }}</span>
-          <SegmentedControl v-model="values.priority" :options="priorityOptions" :label="t('form.priority')" />
-          <p v-if="fieldMessages.priority" data-testid="error-priority" :class="ERROR_CLASS">
+          <SegmentedControl
+            v-model="values.priority"
+            :options="priorityOptions"
+            :label="t('form.priority')"
+            :aria-describedby="fieldMessages.priority ? `${formId}-priority-error` : undefined"
+          />
+          <p
+            v-if="fieldMessages.priority"
+            :id="`${formId}-priority-error`"
+            data-testid="error-priority" :class="ERROR_CLASS">
             {{ fieldMessages.priority }}
           </p>
         </div>
@@ -327,20 +351,38 @@ const ERROR_CLASS = 'text-[13px] leading-5 text-danger-text'
 
       <div data-field="deadline" class="flex flex-col items-start gap-1.5">
         <span :class="LABEL_CLASS" aria-hidden="true">{{ t('form.deadline') }}</span>
-        <DeadlineField v-model:date="values.date" v-model:time="values.time" :time-zone="timeZone" />
-        <p v-if="fieldMessages.deadline" data-testid="error-deadline" :class="ERROR_CLASS">
+        <DeadlineField
+          v-model:date="values.date"
+          v-model:time="values.time"
+          :time-zone="timeZone"
+          :aria-describedby="fieldMessages.deadline ? `${formId}-deadline-error` : undefined"
+        />
+        <p
+          v-if="fieldMessages.deadline"
+          :id="`${formId}-deadline-error`"
+          data-testid="error-deadline" :class="ERROR_CLASS">
           {{ fieldMessages.deadline }}
         </p>
       </div>
 
-      <div v-if="formMessages.length > 0" role="alert" data-testid="form-error" :class="ERROR_CLASS">
+      <!-- Focused when the failure is about no field, so the keyboard is not left on a button that waits. -->
+      <div
+        v-if="formMessages.length > 0"
+        ref="failureBlock"
+        role="alert"
+        tabindex="-1"
+        data-testid="form-error"
+        class="rounded-item"
+        :class="[ERROR_CLASS, FOCUS_RING_CLASS]"
+      >
         <p v-for="message in formMessages" :key="message">{{ message }}</p>
       </div>
     </form>
 
     <template #footer>
-      <Button :disabled="saving" @click="open = false">{{ t('form.cancel') }}</Button>
-      <Button variant="primary" type="submit" :form="formId" :loading="saving" :disabled="gone">
+      <!-- Busy rather than disabled while saving, so the focus stays where it was; both ignore a press meanwhile. -->
+      <Button :busy="saving" @click="open = false">{{ t('form.cancel') }}</Button>
+      <Button variant="primary" type="submit" :form="formId" :busy="saving" :disabled="gone">
         {{ form.task === null ? t('form.create') : t('form.save') }}
       </Button>
     </template>

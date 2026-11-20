@@ -7,9 +7,6 @@ import { useClock } from '../../i18n/clock'
 import { formatDateTime, formatRelativeTime, isPast } from '../../i18n/dates'
 import type { BadgeTone } from '../ui/Badge.vue'
 
-/** In the order the status menu lists them and the board shows its columns. */
-export const STATUS_ORDER: TaskStatus[] = ['todo', 'in_progress', 'done']
-
 export const STATUS_ICONS: Record<TaskStatus, { icon: Component; class: string }> = {
   todo: { icon: Circle, class: 'text-text-muted' },
   in_progress: { icon: Contrast, class: 'text-accent-text' },

@@ -23,7 +23,7 @@ afterEach(() => {
   if (pinia) disposePinia(pinia)
 })
 
-describe('error kinds (adversary, needs-decision)', () => {
+describe('error kinds (adversary, decided in #43)', () => {
   // #17: "Known error types (missing field, too long, not found, server error) mapped to translated
   // messages; anything else falls back to a generic translated message". A 4xx is not a server error.
   it.each([400, 401, 403, 409, 429])('explains a %s answer with the generic message, not as a server error', async (status) => {
