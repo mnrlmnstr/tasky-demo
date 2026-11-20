@@ -155,7 +155,7 @@ describe('task list on the page', () => {
   it('explains a failed load and loads the tasks when "Try again" is pressed', async () => {
     const api = fakeTasksApi()
     const page = mountApp()
-    await api.failWith(0, 502)
+    await api.failWith(0, 500)
     const alert = page.get('main [role="alert"]')
     expect(alert.get('p').text()).toBe('Something went wrong on the server. Please try again.')
 
@@ -185,6 +185,21 @@ describe('task list on the page', () => {
     expect(titles(page)).toEqual(['Write the report', 'Call the bank'])
     expect(page.find('main [role="alert"]').exists()).toBe(false)
     expect(page.get('main [data-testid="task-total"]').text()).toBe('2 tasks')
+  })
+
+  it('says the server cannot be reached when the proxy in front of a stopped backend answers 502, and recovers', async () => {
+    const api = fakeTasksApi()
+    const page = mountApp()
+    await api.failWith(0, 502)
+    expect(page.get('main [role="alert"] p').text()).toBe(
+      'Could not reach the server. Check your connection and try again.',
+    )
+
+    await page.get('main [role="alert"] button').trigger('click')
+    await api.respondTo(1, pageOf(['Write the report']))
+
+    expect(titles(page)).toEqual(['Write the report'])
+    expect(page.find('main [role="alert"]').exists()).toBe(false)
   })
 
   it('redraws the page in the new language as soon as the language setting changes', async () => {

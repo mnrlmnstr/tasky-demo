@@ -1,6 +1,9 @@
 const NO_CONTENT = 204
 const NOT_FOUND = 404
 const UNPROCESSABLE = 422
+// What a proxy in front of the API (the dev server, the frontend container) answers when the backend
+// behind it is down or does not answer: to the user, the server could not be reached.
+const UNREACHABLE = new Set([502, 503, 504])
 
 export type ApiErrorKind = 'not_found' | 'validation' | 'network' | 'aborted' | 'server'
 
@@ -85,6 +88,9 @@ async function failureOf(response: Response, options: RequestInit): Promise<ApiE
   }
   if (response.status === UNPROCESSABLE) {
     return new ApiError('validation', response.status, toFieldErrors(await readJson(response, options)))
+  }
+  if (UNREACHABLE.has(response.status)) {
+    return new ApiError('network', response.status)
   }
   return new ApiError('server', response.status)
 }
