@@ -28,6 +28,26 @@ export function formatDateTime(timestamp: string, locale: string, options: DateT
   }).format(instant)
 }
 
+// A local day `YYYY-MM-DD` as the UTC midnight of that date, so formatting it in UTC shows that same date.
+function dayAsDate(day: string): Date {
+  return new Date(`${day}T00:00:00Z`)
+}
+
+/**
+ * Local days in short form, e.g. "Nov 20" / «20 лист.», or a range of them, "Nov 20 – 24" / «20–24 лист.».
+ * The year is shown only when a day falls outside `thisYear`. Both days are `YYYY-MM-DD`.
+ */
+export function formatDays(first: string, last: string, locale: string, thisYear: number): string {
+  const otherYear = [first, last].some((day) => Number(day.slice(0, 4)) !== thisYear)
+  const format = new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: otherYear ? 'numeric' : undefined,
+    timeZone: 'UTC',
+  })
+  return first === last ? format.format(dayAsDate(first)) : format.formatRange(dayAsDate(first), dayAsDate(last))
+}
+
 const SECONDS_PER_MINUTE = 60
 const SECONDS_PER_HOUR = 3600
 const SECONDS_PER_DAY = 86_400

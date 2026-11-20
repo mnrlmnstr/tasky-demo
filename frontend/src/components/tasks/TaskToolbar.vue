@@ -8,6 +8,7 @@ import { STATUS_FILTERS, useListViewStore } from '../../stores/listView'
 import Button from '../ui/Button.vue'
 import DropdownMenu from '../ui/DropdownMenu.vue'
 import SegmentedControl from '../ui/SegmentedControl.vue'
+import DeadlineFilter from './DeadlineFilter.vue'
 
 // In the order the menu lists them. Every ordering the API knows is here, so a new one does not
 // compile until it has a label.
@@ -50,6 +51,8 @@ const sortItems = computed(() =>
       :label="t('toolbar.statusLabel')"
       class="col-span-2 col-start-1 row-start-1 justify-self-start max-md:w-full md:col-span-1 [&>button]:flex-auto [&>button]:whitespace-nowrap max-sm:[&>button]:px-1.5"
     />
+
+    <DeadlineFilter />
 
     <DropdownMenu :items="sortItems" :checked="view.ordering" @select="view.ordering = $event">
       <template #trigger>

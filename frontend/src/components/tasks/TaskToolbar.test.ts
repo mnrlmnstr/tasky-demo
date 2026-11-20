@@ -269,6 +269,18 @@ describe('clear filters', () => {
     expect(findClearFilters(toolbar)).toBeUndefined()
   })
 
+  it('is offered for a deadline filter alone and clears it', async () => {
+    history.replaceState(null, '', '/?deadline_from=2026-11-20&deadline_to=2026-11-24')
+    const toolbar = await mountToolbar()
+    const view = useListViewStore()
+
+    await findClearFilters(toolbar)?.trigger('click')
+
+    expect([view.deadlineFrom, view.deadlineTo]).toEqual(['', ''])
+    expect(toolbar.get('[data-testid="deadline-filter"]').text()).toBe('Deadline')
+    expect(findClearFilters(toolbar)).toBeUndefined()
+  })
+
   // The toolbar is a grid of rows that are always there: a phone has status / sorting, a wider screen
   // has status and sorting on one row. "Clear filters" takes the free end of the last row, so it never
   // adds a row and the list below does not move when a filter is set or cleared.

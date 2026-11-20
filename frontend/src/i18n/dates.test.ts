@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { formatDateTime, formatRelativeTime, isPast } from './dates'
+import { formatDateTime, formatDays, formatRelativeTime, isPast } from './dates'
 
 // Intl separates the time from AM/PM with a narrow no-break space; the assertions read better with plain ones.
 function plainSpaces(text: string): string {
@@ -60,6 +60,28 @@ describe('absolute date and time', () => {
 
   it.each([['not a date'], [''], ['2026-13-45T99:00:00Z']])('shows nothing for the unreadable timestamp "%s"', (timestamp) => {
     expect(formatDateTime(timestamp, 'en', { timeZone: 'Europe/Kyiv' })).toBe('')
+  })
+})
+
+describe('local days in short form', () => {
+  it.each([
+    ['en', '2026-11-20', '2026-11-20', 'Nov 20'],
+    ['uk', '2026-11-20', '2026-11-20', '20 лист.'],
+    ['en', '2026-11-20', '2026-11-24', 'Nov 20 – 24'],
+    ['uk', '2026-11-20', '2026-11-24', '20–24 лист.'],
+    ['uk', '2026-11-20', '2026-12-02', '20 лист. – 2 груд.'],
+    ['en', '2027-01-03', '2027-01-03', 'Jan 3, 2027'],
+    ['uk', '2026-12-30', '2027-01-03', '30 груд. 2026 – 3 січ. 2027 рр.'],
+  ])('shows %s %s to %s as "%s"', (locale, first, last, expected) => {
+    expect(plainSpaces(formatDays(first, last, locale, 2026))).toBe(expected)
+  })
+
+  it('shows the date of the day whatever the browser zone', () => {
+    vi.stubEnv('TZ', 'America/Los_Angeles')
+
+    expect(formatDays('2026-11-20', '2026-11-20', 'en', 2026)).toBe('Nov 20')
+
+    vi.unstubAllEnvs()
   })
 })
 
