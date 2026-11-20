@@ -239,6 +239,27 @@ describe('changing the status from the row', () => {
     expect(page.get(`${TOAST} p`).text()).toBe(NETWORK_ERROR)
   })
 
+  it('works again, without reloading the page, once the server that could not be reached is back', async () => {
+    const { page, server } = await openApp([task('Write'), task('Call')])
+    server.loseListConnection()
+    server.failChanges('offline')
+    await pickStatus(page, 'Write', 'Done')
+    expect(page.get(`${TOAST} p`).text()).toBe(NETWORK_ERROR)
+    expect(statusTrigger(page, 'Write').attributes('aria-label')).toBe('Status: To do. Change status')
+    useTasksStore().retry()
+    await settle()
+    expect(page.get('main [role="alert"] p').text()).toBe(NETWORK_ERROR)
+
+    server.loseListConnection(false)
+    server.failChanges(null)
+    await pickStatus(page, 'Write', 'Done')
+
+    expect(server.changes.at(-1)).toEqual({ method: 'PATCH', path: '/api/v1/tasks/id-Write', body: { status: 'done' } })
+    expect(statusTrigger(page, 'Write').attributes('aria-label')).toBe('Status: Done. Change status')
+    expect(page.get(`${TOAST} p`).text()).toBe('Status changed')
+    expect(page.find('main [role="alert"]').exists()).toBe(false)
+  })
+
   it('says the task no longer exists and takes the row away when it was deleted meanwhile', async () => {
     const rows = [task('Write'), task('Call')]
     const { page } = await openApp(rows)
@@ -451,6 +472,21 @@ describe('deleting from the row', () => {
     expect(page.get(`${TOAST} p`).text()).toBe(message)
     expect(page.find(`${TOAST} button[data-variant="ghost"]`).exists()).toBe(false)
     expect(document.activeElement).toBe(deleteButton(page, 'Write').element)
+  })
+
+  it('takes the deleted task off the list also when the list cannot be reloaded afterwards', async () => {
+    const { page, server } = await openApp([task('Write'), task('Call')])
+    server.loseListConnection()
+    await askToDelete(page, 'Write')
+
+    await pressDialogButton('Delete')
+
+    expect(server.changes).toHaveLength(1)
+    expect(titles(page)).toEqual(['Call'])
+    expect(page.findAll('main li [aria-busy="true"]')).toHaveLength(0)
+    expect(page.get('[data-testid="task-total"]').text()).toBe('1 task')
+    expect(page.get('main [role="alert"] p').text()).toBe(NETWORK_ERROR)
+    expect(document.activeElement).toBe(listRegion(page))
   })
 
   it('takes a task that is already gone off the list quietly', async () => {

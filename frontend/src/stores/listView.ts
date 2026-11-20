@@ -1,4 +1,4 @@
-import { useUrlSearchParams } from '@vueuse/core'
+import { createEventHook, useUrlSearchParams } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, nextTick, watch } from 'vue'
 
@@ -167,7 +167,12 @@ export const useListViewStore = defineStore('listView', () => {
     return query
   })
 
+  // Told before the view changes, so a field with typing not yet searched for (the toolbar's) can drop it,
+  // whichever "Clear filters" was pressed.
+  const filtersCleared = createEventHook<void>()
+
   function clearFilters(): void {
+    void filtersCleared.trigger()
     filter({ search: DEFAULT_SEARCH, status: DEFAULT_STATUS }, 'push')
   }
 
@@ -182,5 +187,15 @@ export const useListViewStore = defineStore('listView', () => {
     { flush: 'sync', immediate: true },
   )
 
-  return { search, status, ordering, page, isFiltered, queryParams, clearFilters, correctPage }
+  return {
+    search,
+    status,
+    ordering,
+    page,
+    isFiltered,
+    queryParams,
+    clearFilters,
+    onFiltersCleared: filtersCleared.on,
+    correctPage,
+  }
 })

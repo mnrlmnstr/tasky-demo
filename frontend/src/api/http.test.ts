@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError, apiFetch } from './http'
+import { ApiError, apiFetch, failureKind } from './http'
 
 function fakeFetch(implementation: typeof fetch) {
   const fetchFake = vi.fn(implementation)
@@ -112,7 +112,7 @@ describe('apiFetch errors', () => {
 
   it.each([
     ['500 with a JSON body', () => jsonResponse({ detail: 'Internal server error' }, 500), 500],
-    ['502 with a text body', () => new Response('Bad Gateway', { status: 502 }), 502],
+    ['501', () => jsonResponse({ detail: 'Not implemented' }, 501), 501],
     ['400', () => jsonResponse({ detail: 'Bad request' }, 400), 400],
     ['409', () => jsonResponse({ detail: 'Conflict' }, 409), 409],
   ])('reports a %s response as server', async (_name, respond, status) => {
@@ -121,6 +121,20 @@ describe('apiFetch errors', () => {
     const failure = await failureOf(apiFetch('/api/v1/tasks'))
 
     expect(failure).toMatchObject({ kind: 'server', status, fieldErrors: [] })
+  })
+
+  // The app reaches the API through a proxy (the dev server, the frontend container): with the backend
+  // stopped, the proxy answers in its place, so the server could not be reached, as with a lost connection.
+  it.each([
+    ['502 Bad Gateway', 502],
+    ['503 Service Unavailable', 503],
+    ['504 Gateway Timeout', 504],
+  ])('reports a %s from the proxy in front of the API as network', async (_name, status) => {
+    fakeFetch(async () => new Response('Bad Gateway', { status, headers: { 'Content-Type': 'text/plain' } }))
+
+    const failure = await failureOf(apiFetch('/api/v1/tasks'))
+
+    expect(failure).toMatchObject({ kind: 'network', status, fieldErrors: [] })
   })
 
   it.each([
@@ -297,5 +311,21 @@ describe('apiFetch errors', () => {
     const failure = await failureOf(apiFetch('/api/v1/tasks'))
 
     expect(failure).toMatchObject({ kind: 'network' })
+  })
+})
+
+describe('failureKind', () => {
+  it.each(['network', 'server', 'not_found', 'validation', 'aborted'] as const)(
+    'reads the kind of an ApiError: %s',
+    (kind) => {
+      expect(failureKind(new ApiError(kind))).toBe(kind)
+    },
+  )
+
+  it.each([
+    ['an ordinary error', new TypeError('boom')],
+    ['something that is not an error at all', 'boom'],
+  ])('reports %s as a server error, so it still gets a message', (_name, failure) => {
+    expect(failureKind(failure)).toBe('server')
   })
 })

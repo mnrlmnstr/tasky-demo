@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 
-import { ApiError, type ApiErrorKind } from '../api/http'
+import { failureKind, type ApiErrorKind } from '../api/http'
 
 export const UNDO_WINDOW_MS = 6000
 
@@ -100,7 +100,7 @@ export const useUndoStore = defineStore('undo', () => {
     try {
       await current.undo()
     } catch (reason) {
-      failure = reason instanceof ApiError ? reason.kind : 'server'
+      failure = failureKind(reason)
     }
     // Replaced by a newer offer in the meantime: the toast is no longer about this action.
     if (pending.value !== current) return

@@ -420,6 +420,32 @@ describe('clear filters', () => {
     expect(view.search).toBe('')
   })
 
+  // The toolbar is a grid of rows that are always there: a phone has search / status / sorting, a wider
+  // screen has search and sorting / status. "Clear filters" takes the free end of the last row, so it
+  // never adds a row and the list below does not move when a filter is set or cleared.
+  it('takes the free end of a row the toolbar always has, instead of a row of its own', async () => {
+    history.replaceState(null, '', '/?status=done')
+
+    const toolbar = await mountToolbar()
+
+    const rowClasses = (classes: string[]) => classes.filter((name) => /(^|:)row-start-/.test(name)).sort()
+    const clear = findClearFilters(toolbar)?.classes() ?? []
+    expect(rowClasses(clear)).toEqual(['md:row-start-2', 'row-start-3'])
+    expect(rowClasses(sortTrigger(toolbar).classes())).toContain('row-start-3')
+    expect(rowClasses(toolbar.get('[role="group"][aria-label="Status"]').classes())).toEqual(['row-start-2'])
+  })
+
+  it('leaves room for itself by shortening a long sorting name, which the button still names in full', async () => {
+    history.replaceState(null, '', '/?status=done&ordering=-deadline')
+
+    const toolbar = await mountToolbar()
+
+    const label = sortTrigger(toolbar).get('span')
+    expect(label.text()).toBe('Deadline: latest first')
+    expect(label.classes()).toContain('truncate')
+    expect(sortTrigger(toolbar).attributes('aria-label')).toBe('Sort: Deadline: latest first')
+  })
+
   it('is named in Ukrainian when the language is Ukrainian', async () => {
     history.replaceState(null, '', '/?status=done')
 

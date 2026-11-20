@@ -3,19 +3,10 @@ import { X } from 'lucide-vue-next'
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { ApiErrorKind } from '../../api/http'
+import { errorMessageKey } from '../../i18n/errorMessages'
 import { useUndoStore } from '../../stores/undo'
 import Button from '../ui/Button.vue'
 import IconButton from '../ui/IconButton.vue'
-
-// Every kind is listed, so a new one does not compile until it has a message.
-const ERROR_MESSAGES: Record<ApiErrorKind, string> = {
-  network: 'errors.network',
-  server: 'errors.server',
-  not_found: 'errors.not_found',
-  validation: 'errors.generic',
-  aborted: 'errors.generic',
-}
 
 const { t } = useI18n()
 const undo = useUndoStore()
@@ -25,8 +16,8 @@ const closeButton = useTemplateRef('closeButton')
 // What the toast says: the action that can be undone, why undoing it failed, or why another action
 // failed. Empty = no toast.
 const message = computed(() => {
-  if (undo.notice !== null) return t(ERROR_MESSAGES[undo.notice])
-  if (undo.error !== null) return t('undo.failed', { reason: t(ERROR_MESSAGES[undo.error]) })
+  if (undo.notice !== null) return t(errorMessageKey(undo.notice))
+  if (undo.error !== null) return t('undo.failed', { reason: t(errorMessageKey(undo.error)) })
   return undo.label === null ? '' : t(`undo.labels.${undo.label}`)
 })
 

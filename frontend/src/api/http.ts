@@ -1,6 +1,9 @@
 const NO_CONTENT = 204
 const NOT_FOUND = 404
 const UNPROCESSABLE = 422
+// What a proxy in front of the API (the dev server, the frontend container) answers when the backend
+// behind it is down or does not answer: to the user, the server could not be reached.
+const UNREACHABLE = new Set([502, 503, 504])
 
 export type ApiErrorKind = 'not_found' | 'validation' | 'network' | 'aborted' | 'server'
 
@@ -21,6 +24,14 @@ export class ApiError extends Error {
     this.status = status
     this.fieldErrors = fieldErrors
   }
+}
+
+/**
+ * The kind of a failed request, for its message. The client rejects with an `ApiError`; anything else
+ * (a bug, a broken response) is still reported, as a server error, rather than not at all.
+ */
+export function failureKind(failure: unknown): ApiErrorKind {
+  return failure instanceof ApiError ? failure.kind : 'server'
 }
 
 // The caller's signal decides: an abort with a custom reason or a timeout does not reject with an AbortError.
@@ -77,6 +88,9 @@ async function failureOf(response: Response, options: RequestInit): Promise<ApiE
   }
   if (response.status === UNPROCESSABLE) {
     return new ApiError('validation', response.status, toFieldErrors(await readJson(response, options)))
+  }
+  if (UNREACHABLE.has(response.status)) {
+    return new ApiError('network', response.status)
   }
   return new ApiError('server', response.status)
 }
