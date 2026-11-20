@@ -41,12 +41,67 @@ describe('app shell', () => {
     expect(page.get('header button[data-variant="primary"]').text()).toBe('Нова задача')
   })
 
-  it('shows the app title as the page heading inside the header', () => {
+  it('shows no app title, but keeps the app name as a page heading for assistive technology', () => {
     fakeTasksApi()
 
     const page = mountApp()
 
-    expect(page.get('header h1').text()).toBe('Tasky')
+    const heading = page.get('header h1')
+    expect(heading.text()).toBe('Tasky')
+    expect(heading.classes()).toContain('sr-only')
+    expect(page.findAll('h1')).toHaveLength(1)
+  })
+
+  it('puts the search field first in the header, before the settings and "New task" buttons', () => {
+    fakeTasksApi()
+
+    const page = mountApp()
+
+    const header = page.get('header').element
+    const controls = Array.from(header.querySelectorAll('input, button'))
+    expect(controls.map((control) => control.getAttribute('aria-label') ?? control.textContent?.trim())).toEqual([
+      'Search tasks',
+      'Settings',
+      'New task',
+    ])
+    expect(page.find('main input[type="search"]').exists()).toBe(false)
+  })
+
+  it('lets the search field take the free width of the header and shrink on a narrow screen', () => {
+    fakeTasksApi()
+
+    const page = mountApp()
+
+    const field = page.get('header input[type="search"]').element.parentElement as HTMLElement
+    expect(field.classList).toContain('flex-1')
+    expect(field.classList).toContain('min-w-0')
+  })
+
+  it('shows "New task" as its icon alone on a phone, still named in full for assistive technology', () => {
+    fakeTasksApi()
+
+    const page = mountApp()
+
+    const newTask = page.get('header button[data-variant="primary"]')
+    const label = newTask.get('span')
+    expect(label.text()).toBe('New task')
+    expect(label.classes()).toContain('max-sm:sr-only')
+    expect(newTask.attributes('title')).toBe('New task')
+  })
+
+  it('draws the page as a card with a margin and rounded corners from the small breakpoint up, edge to edge below it', () => {
+    fakeTasksApi()
+
+    const page = mountApp()
+
+    const card = page.get('header').element.parentElement as HTMLElement
+    for (const name of ['sm:rounded-card', 'sm:border', 'sm:shadow-raised', 'bg-surface']) {
+      expect(card.classList).toContain(name)
+    }
+    expect(Array.from(card.classList).some((name) => /^(rounded|border$|shadow)/.test(name))).toBe(false)
+    const gutter = card.parentElement as HTMLElement
+    expect(gutter.classList).toContain('sm:py-8')
+    expect(Array.from(gutter.classList).some((name) => /^(p|py|pt|m|my|mt)-/.test(name))).toBe(false)
   })
 
   it('offers a settings button in the header, named for assistive technology and drawn as the settings icon', () => {

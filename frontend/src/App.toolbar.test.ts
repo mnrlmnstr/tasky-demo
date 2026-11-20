@@ -33,7 +33,7 @@ async function settle() {
 }
 
 function searchBox(page: VueWrapper) {
-  return page.get<HTMLInputElement>('main input[type="search"]')
+  return page.get<HTMLInputElement>('header input[type="search"]')
 }
 
 async function search(page: VueWrapper, text: string) {
@@ -92,7 +92,7 @@ afterEach(() => {
 })
 
 describe('toolbar on the page', () => {
-  it('sits in the main area above the list', async () => {
+  it('has its search in the header, above the list', async () => {
     const api = fakeTasksApi()
     const page = await openApp()
     await api.respondTo(0, pageOf(['Write the report']))
