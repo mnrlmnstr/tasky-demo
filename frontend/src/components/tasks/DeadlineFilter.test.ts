@@ -88,11 +88,18 @@ afterEach(() => {
 })
 
 describe('the button', () => {
-  it('reads "Deadline" while no deadline filter is set', async () => {
+  it('is only an icon named "Deadline" while no deadline filter is set', async () => {
     const filter = await mountFilter()
 
-    expect(trigger(filter).text()).toBe('Deadline')
+    expect(trigger(filter).text()).toBe('')
     expect(trigger(filter).attributes('aria-label')).toBe('Deadline')
+    expect(trigger(filter).attributes('title')).toBe('Deadline')
+  })
+
+  it('is named in Ukrainian when the language is Ukrainian', async () => {
+    const filter = await mountFilter('uk')
+
+    expect(trigger(filter).attributes('aria-label')).toBe('Дедлайн')
   })
 
   it.each([
@@ -247,7 +254,7 @@ describe('quick picks', () => {
     await clickButton('Clear')
 
     expect(deadline()).toEqual(['', ''])
-    expect(trigger(filter).text()).toBe('Deadline')
+    expect(trigger(filter).attributes('aria-label')).toBe('Deadline')
     expect(popover()).toBeNull()
   })
 })

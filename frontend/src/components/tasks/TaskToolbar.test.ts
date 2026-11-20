@@ -277,7 +277,7 @@ describe('clear filters', () => {
     await findClearFilters(toolbar)?.trigger('click')
 
     expect([view.deadlineFrom, view.deadlineTo]).toEqual(['', ''])
-    expect(toolbar.get('[data-testid="deadline-filter"]').text()).toBe('Deadline')
+    expect(toolbar.get('[data-testid="deadline-filter"]').attributes('aria-label')).toBe('Deadline')
     expect(findClearFilters(toolbar)).toBeUndefined()
   })
 

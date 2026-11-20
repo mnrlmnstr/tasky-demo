@@ -49,6 +49,10 @@ const daysText = computed(() => {
   return null
 })
 
+const label = computed(() =>
+  daysText.value === null ? t('dateFilter.label') : t('dateFilter.labelWith', { days: daysText.value }),
+)
+
 // The calendar opens on the month of the first day filtered, or of the last, or of today.
 const firstShown = computed<DateValue>(() => {
   const day = view.deadlineFrom || view.deadlineTo
@@ -105,12 +109,14 @@ const CLEAR_CLASS = `${SMALL_CLASS} shrink-0 text-text hover:bg-surface-muted`
 <template>
   <PopoverRoot v-model:open="open">
     <PopoverTrigger as-child>
+      <!-- Only the icon while nothing is filtered, so the toolbar keeps to one row where it did before. -->
       <Button
         data-testid="deadline-filter"
-        :aria-label="daysText === null ? t('dateFilter.label') : t('dateFilter.labelWith', { days: daysText })"
+        :aria-label="label"
+        :title="label"
       >
         <CalendarDays class="size-4 text-text-muted" aria-hidden="true" />
-        <span class="whitespace-nowrap">{{ daysText ?? t('dateFilter.label') }}</span>
+        <span v-if="daysText !== null" class="whitespace-nowrap">{{ daysText }}</span>
       </Button>
     </PopoverTrigger>
     <PopoverPortal>
