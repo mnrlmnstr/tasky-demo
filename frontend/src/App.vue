@@ -5,18 +5,22 @@ import { useI18n } from 'vue-i18n'
 
 import SettingsDialog from './components/settings/SettingsDialog.vue'
 import TaskFormDialog from './components/tasks/TaskFormDialog.vue'
+import TaskBoard from './components/tasks/board/TaskBoard.vue'
+import TaskTable from './components/tasks/table/TaskTable.vue'
 import TaskList from './components/tasks/TaskList.vue'
 import TaskSearch from './components/tasks/TaskSearch.vue'
 import TaskToolbar from './components/tasks/TaskToolbar.vue'
 import Button from './components/ui/Button.vue'
 import IconButton from './components/ui/IconButton.vue'
 import UndoToast from './components/undo/UndoToast.vue'
+import { useListViewStore } from './stores/listView'
 import { useTaskFormStore } from './stores/taskForm'
 import { useTasksStore } from './stores/tasks'
 
 const { t } = useI18n()
 const settingsOpen = ref(false)
 const taskForm = useTaskFormStore()
+const view = useListViewStore()
 
 useTasksStore().start()
 </script>
@@ -24,8 +28,10 @@ useTasksStore().start()
 <template>
   <!-- From the small breakpoint up the page is a card held off the window's edges; on a phone it runs edge to edge. -->
   <div class="sm:px-6 sm:py-8">
+    <!-- The board needs room for three columns side by side; the list and the table read better narrow. -->
     <div
-      class="mx-auto min-h-dvh max-w-[760px] border-border bg-surface sm:min-h-[calc(100dvh-4rem)] sm:rounded-card sm:border sm:shadow-raised"
+      class="mx-auto min-h-dvh border-border bg-surface sm:min-h-[calc(100dvh-4rem)] sm:rounded-card sm:border sm:shadow-raised"
+      :class="view.view === 'board' ? 'max-w-[1100px]' : 'max-w-[760px]'"
     >
       <header class="flex items-center gap-2 border-b border-border px-5 py-4">
         <!-- The app's name stays the page heading for assistive technology; the search takes its place on screen. -->
@@ -49,7 +55,10 @@ useTasksStore().start()
       </header>
       <main class="px-5 py-5">
         <TaskToolbar class="mb-4" />
-        <TaskList />
+        <TaskBoard v-if="view.view === 'board'" />
+        <TaskList v-else>
+          <template v-if="view.view === 'table'" #rows><TaskTable /></template>
+        </TaskList>
       </main>
     </div>
     <UndoToast />
