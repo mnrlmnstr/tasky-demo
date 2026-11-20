@@ -82,7 +82,7 @@ async def test_the_documented_search_example_finds_seeded_tasks(
 async def test_seed_does_nothing_when_the_only_tasks_are_deleted(
     client: httpx.AsyncClient,
 ) -> None:
-    created = await client.post(TASKS, json={"title": "Видалена задача"})
+    created = await client.post(TASKS, json={"title": "A deleted task"})
     await client.delete(f"{TASKS}/{created.json()['id']}")
 
     await run_seed()
@@ -97,7 +97,7 @@ async def test_reset_replaces_existing_tasks_with_a_fresh_demo_set(
 ) -> None:
     await run_seed()
     seeded = await all_tasks(client)
-    await client.post(TASKS, json={"title": "Моя власна задача"})
+    await client.post(TASKS, json={"title": "My own task"})
 
     await run_seed("--reset")
 
@@ -111,7 +111,7 @@ async def test_reset_replaces_existing_tasks_with_a_fresh_demo_set(
 async def test_reset_seeds_a_database_whose_only_tasks_are_deleted(
     client: httpx.AsyncClient,
 ) -> None:
-    created = await client.post(TASKS, json={"title": "Видалена задача"})
+    created = await client.post(TASKS, json={"title": "A deleted task"})
     await client.delete(f"{TASKS}/{created.json()['id']}")
 
     await run_seed("--reset")
@@ -137,13 +137,16 @@ async def test_seeded_tasks_fill_more_than_one_page_at_the_default_page_size(
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("status", ["todo", "in_progress", "done"])
-async def test_seeded_tasks_include_every_status(
-    seeded: datetime, client: httpx.AsyncClient, status: str
+@pytest.mark.parametrize(
+    ("status", "fewest", "most"),
+    [("in_progress", 3, 5), ("todo", 6, 8), ("done", 15, 22)],
+)
+async def test_seeded_tasks_are_mostly_shipped_work_with_a_few_in_progress_and_next_steps(
+    seeded: datetime, client: httpx.AsyncClient, status: str, fewest: int, most: int
 ) -> None:
     body = (await client.get(TASKS, params={"status": status})).json()
 
-    assert body["total"] >= 3
+    assert fewest <= body["total"] <= most
 
 
 @pytest.mark.anyio
@@ -186,23 +189,45 @@ async def test_seeded_tasks_include_each_kind_of_deadline(
 
 
 @pytest.mark.anyio
-async def test_seeded_tasks_were_created_over_the_last_month(
+async def test_seeded_done_tasks_have_no_deadline_ahead(
+    seeded: datetime, client: httpx.AsyncClient
+) -> None:
+    done = (await client.get(TASKS, params={"status": "done", "page_size": 100})).json()["items"]
+
+    assert all(_deadline(task) is None or _deadline(task) < seeded for task in done)
+
+
+@pytest.mark.anyio
+async def test_seeded_tasks_were_created_in_the_past_over_about_three_weeks(
     seeded: datetime, client: httpx.AsyncClient
 ) -> None:
     created = sorted(datetime.fromisoformat(task["created_at"]) for task in await all_tasks(client))
 
-    assert created[0] > seeded - timedelta(days=31)
-    assert created[-1] < seeded + timedelta(minutes=1)
+    assert created[0] > seeded - timedelta(days=22)
+    assert created[-1] < seeded
     assert created[-1] - created[0] > timedelta(days=20)
 
 
 @pytest.mark.anyio
-async def test_searching_a_shared_word_finds_several_seeded_tasks(
+async def test_seeded_shipped_work_was_created_before_the_current_work(
     seeded: datetime, client: httpx.AsyncClient
 ) -> None:
-    body = (await client.get(TASKS, params={"search": "звіт"})).json()
+    tasks = await all_tasks(client)
 
-    assert body["total"] >= 3
+    def created(status: str) -> list[datetime]:
+        return [datetime.fromisoformat(t["created_at"]) for t in tasks if t["status"] == status]
+
+    assert min(created("done")) < min(created("in_progress"))
+    assert min(created("done")) < min(created("todo"))
+
+
+@pytest.mark.anyio
+async def test_searching_board_finds_the_five_board_tasks(
+    seeded: datetime, client: httpx.AsyncClient
+) -> None:
+    body = (await client.get(TASKS, params={"search": "board"})).json()
+
+    assert body["total"] == 5
 
 
 @pytest.mark.anyio
@@ -211,16 +236,41 @@ async def test_some_seeded_tasks_have_no_description(
 ) -> None:
     tasks = await all_tasks(client)
 
-    assert 1 <= [task["description"] for task in tasks].count(None) <= 2
+    assert 2 <= [task["description"] for task in tasks].count(None) <= 6
 
 
 @pytest.mark.anyio
-async def test_seeded_custom_order_starts_as_newest_first_with_distinct_positions(
+async def test_seeded_titles_are_distinct(seeded: datetime, client: httpx.AsyncClient) -> None:
+    titles = [task["title"] for task in await all_tasks(client)]
+
+    assert len(set(titles)) == len(titles)
+
+
+PRIORITY_RANK = {"high": 0, "medium": 1, "low": 2}
+BOARD_COLUMNS = ["in_progress", "todo", "done"]
+
+
+@pytest.mark.anyio
+async def test_seeded_custom_order_puts_current_work_first_by_importance(
     seeded: datetime, client: httpx.AsyncClient
 ) -> None:
     params = {"ordering": "position", "page_size": 100}
     by_position = (await client.get(TASKS, params=params)).json()["items"]
-    newest_first = await all_tasks(client)
+    statuses = [task["status"] for task in by_position]
 
-    assert [task["id"] for task in by_position] == [task["id"] for task in newest_first]
-    assert len({task["position"] for task in newest_first}) == len(newest_first)
+    assert len({task["position"] for task in by_position}) == len(by_position)
+    assert statuses == sorted(statuses, key=BOARD_COLUMNS.index)
+    for status in ("in_progress", "todo"):
+        ranks = [PRIORITY_RANK[t["priority"]] for t in by_position if t["status"] == status]
+        assert ranks == sorted(ranks)
+
+
+@pytest.mark.anyio
+async def test_seeded_done_column_shows_the_latest_shipped_work_first(
+    seeded: datetime, client: httpx.AsyncClient
+) -> None:
+    params = {"ordering": "position", "status": "done", "page_size": 100}
+    by_position = (await client.get(TASKS, params=params)).json()["items"]
+    newest_first = (await client.get(TASKS, params={"status": "done", "page_size": 100})).json()
+
+    assert [task["id"] for task in by_position] == [task["id"] for task in newest_first["items"]]

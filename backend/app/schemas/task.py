@@ -78,7 +78,7 @@ class TaskListQuery(BaseModel):
     search: Text | None = Field(
         default=None,
         description="Only tasks whose title contains this text, ignoring case.",
-        examples=["звіт"],
+        examples=["board"],
         json_schema_extra=_without_null,
     )
     deadline_from: Deadline | None = Field(

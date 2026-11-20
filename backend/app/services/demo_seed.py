@@ -1,8 +1,10 @@
-"""Demo tasks for a fresh install, so every list feature has something to show.
+"""Demo tasks for a fresh install: the story of building Tasky itself.
 
-The mix covers every status and priority, deadlines that are overdue, due within a few days,
-further out or missing, and creation dates spread over the last 30 days. Several titles share
-the word "звіт" so a search finds more than one. All dates are relative to the seed time.
+The shipped work of the backend and frontend milestones is done, the current work is in
+progress and a few plausible next steps are to do. Deadlines are overdue, due within a few
+days, further out or missing; creation dates follow the order the work happened over the last
+three weeks. Five titles share the word "board" so a search finds more than one. All dates are
+relative to the seed time.
 """
 
 import logging
@@ -36,158 +38,180 @@ def _days(days: float) -> timedelta:
     return timedelta(days=days)
 
 
-# One task per block, its status, priority and dates on one line, so the mix reads at a glance.
+# In board order, which is also the custom order: the work in progress, then the next steps,
+# each by importance, then the shipped work, latest first. One task per block, its status,
+# priority, age and deadline on one line, so the mix reads at a glance.
 # fmt: off
 DEMO_TASKS: tuple[DemoTask, ...] = (
+    # In progress
     DemoTask(
-        "Підготувати квартальний звіт для керівництва",
-        "Зібрати цифри за третій квартал, додати графіки та короткі висновки.",
-        IN_PROGRESS, HIGH, _days(12.2), _days(-2),
+        "Refactor: shared task title and deadline pieces",
+        "Pull the title, deadline badge, form submit and task actions out of the list, board "
+        "and table components, so the three views stop drifting apart.",
+        IN_PROGRESS, HIGH, _days(6.6), _days(1.5),
     ),
     DemoTask(
-        "Надіслати звіт про витрати бухгалтерії",
-        "Чеки за відрядження до Львова лежать у спільній папці.",
-        TODO, MEDIUM, _days(9.5), _days(-1),
+        "Demo data that tells the story of building Tasky",
+        "Replace the placeholder seed with the project's own work items, so a fresh install "
+        "reads like a real board.",
+        IN_PROGRESS, HIGH, _days(0.2), _days(2),
     ),
     DemoTask(
-        "Перевірити щотижневий звіт з продажів",
-        "Звірити суми з CRM перед розсилкою.",
-        TODO, HIGH, _days(1.3), _days(0.25),
+        "README: quick start first",
+        "Clone and one command at the top; configuration, development and the API reference "
+        "below it.",
+        IN_PROGRESS, MEDIUM, _days(1.6), _days(-0.3),
     ),
     DemoTask(
-        "Річний звіт: зібрати відгуки команди",
-        "Короткий опитувальник на п'ять питань, відповіді до п'ятниці.",
-        TODO, LOW, _days(4.1), _days(21),
-    ),
-    DemoTask(
-        "Оновити залежності бекенду",
-        "Підняти версії FastAPI та SQLAlchemy, прогнати тести.",
-        TODO, MEDIUM, _days(6.4), _days(5),
-    ),
-    DemoTask(
-        "Виправити помилку з часовими поясами в дедлайнах",
-        "Користувачі з Києва бачать дедлайн на годину раніше.",
-        IN_PROGRESS, HIGH, _days(3.2), _days(1),
-    ),
-    DemoTask(
-        "Записатися до стоматолога",
+        "Refresh the README screenshots",
         None,
-        TODO, MEDIUM, _days(0.4), _days(2),
+        IN_PROGRESS, LOW, _days(0.4), None,
+    ),
+    # To do
+    DemoTask(
+        "CI: frontend check and backend tests on every pull request",
+        "GitHub Actions running `npm run check` and the backend suite against PostgreSQL, "
+        "required before merge.",
+        TODO, HIGH, _days(8.1), _days(-2),
     ),
     DemoTask(
-        "Купити подарунок мамі на день народження",
-        "Вона згадувала про нову книгу Забужко або гарний шарф.",
-        TODO, HIGH, _days(10.8), _days(-3),
+        "Request id shared by browser and backend logs",
+        "Send an X-Request-ID from the client and log it on both sides, so one failed save "
+        "can be followed end to end.",
+        TODO, HIGH, _days(2.8), _days(2.5),
     ),
     DemoTask(
-        "Продовжити страховку на авто",
-        "Порівняти пропозиції трьох страхових перед продовженням.",
-        TODO, HIGH, _days(15.6), _days(9),
+        "Rebalance positions when custom order gaps run out",
+        "Dragging between the same two tasks halves the gap each time; renumber the column "
+        "before floats lose precision.",
+        TODO, MEDIUM, _days(5.2), _days(-1),
     ),
     DemoTask(
-        "Провести ретроспективу спринту",
-        "Формат «старт, стоп, продовжуй», дошка в Miro.",
-        DONE, MEDIUM, _days(14.3), _days(-7),
+        "Audit the test-only dependencies",
+        "Check what the frontend and backend dev dependencies pull in and drop what the "
+        "suites no longer use.",
+        TODO, MEDIUM, _days(2.1), _days(8),
     ),
     DemoTask(
-        "Написати документацію до API",
-        "Описати всі ендпоінти задач і приклади запитів.",
-        IN_PROGRESS, MEDIUM, _days(7.7), _days(4),
+        "End-to-end tests in a real browser",
+        "A few Playwright runs against the Compose stack: create, edit, filter and drag a task.",
+        TODO, MEDIUM, _days(3.9), _days(14),
     ),
     DemoTask(
-        "Замовити воду в офіс",
-        "Шість бутлів, доставка у вівторок зранку.",
-        DONE, LOW, _days(5.9), None,
+        "Shortcut keys for new task, search and undo",
+        "N opens the form, / focuses the search, Ctrl+Z undoes the last change.",
+        TODO, LOW, _days(1.1), None,
     ),
     DemoTask(
-        "Підготувати презентацію для клієнта",
-        "Кейс із запуску мобільного застосунку, до 15 слайдів.",
-        TODO, HIGH, _days(2.6), _days(3),
-    ),
-    DemoTask(
-        "Прочитати книгу «Чиста архітектура»",
-        "По одному розділу щовечора.",
-        IN_PROGRESS, LOW, _days(27.4), None,
-    ),
-    DemoTask(
-        "Налаштувати резервне копіювання бази даних",
-        "Щоденний дамп у сховище, зберігати 14 днів.",
-        TODO, HIGH, _days(18.1), _days(-5),
-    ),
-    DemoTask(
-        "Сплатити комунальні послуги",
-        "Газ, світло та вода за жовтень.",
-        DONE, MEDIUM, _days(20.5), _days(-10),
-    ),
-    DemoTask(
-        "Оновити резюме та профіль на LinkedIn",
-        "Додати останній проєкт і нові навички.",
-        TODO, LOW, _days(23.2), _days(30),
-    ),
-    DemoTask(
-        "Зустріч з дизайнером щодо нового логотипу",
-        "Обговорити три варіанти кольорової палітри.",
-        DONE, MEDIUM, _days(11.9), _days(-4),
-    ),
-    DemoTask(
-        "Сходити в спортзал тричі цього тижня",
-        "Понеділок, середа, п'ятниця, зранку перед роботою.",
-        IN_PROGRESS, LOW, _days(2.1), _days(4.5),
-    ),
-    DemoTask(
-        "Перекласти інструкцію користувача англійською",
-        "Близько двадцяти сторінок, терміни узгодити з редактором.",
-        TODO, MEDIUM, _days(8.3), _days(14),
-    ),
-    DemoTask(
-        "Провести співбесіду з кандидатом на посаду QA",
-        "Резюме в пошті, технічне завдання підготувала Оксана.",
-        DONE, HIGH, _days(16.7), _days(-8),
-    ),
-    DemoTask(
-        "Розібрати старі файли на ноутбуці",
+        "Change the status of several tasks at once",
         None,
-        TODO, LOW, _days(29.1), None,
+        TODO, LOW, _days(0.7), _days(30),
+    ),
+    # Done, latest first
+    DemoTask(
+        "Fix board placeholders staying after a column loads",
+        "The loading cards sat inside the cards' transition group, and their pulse animation "
+        "kept the leave transition from ever finishing.",
+        DONE, MEDIUM, _days(3.4), None,
     ),
     DemoTask(
-        "Спланувати відпустку в Карпатах",
-        "Подивитися будиночки біля Яремче на кінець січня.",
-        TODO, LOW, _days(13.4), _days(45),
+        "Change priority from the list, board and table",
+        "A priority menu on every task, in all three views.",
+        DONE, LOW, _days(4.6), None,
     ),
     DemoTask(
-        "Додати пагінацію в список задач",
-        "Розмір сторінки за замовчуванням 20, кнопки вперед і назад.",
-        DONE, MEDIUM, _days(25.8), _days(-15),
+        "Custom order: drag cards on the board and rows in the table",
+        "A position per task, a move endpoint that places a task between two others, and "
+        "Move up / Move down for the keyboard.",
+        DONE, HIGH, _days(5.8), _days(-4),
     ),
     DemoTask(
-        "Полагодити кран на кухні",
-        "Купити нову прокладку в будівельному магазині.",
-        TODO, MEDIUM, _days(1.8), None,
+        "Review fixes: deadline filter, board and accessibility",
+        "Fixes from a review pass over the deadline filter, the board, the form and keyboard "
+        "and screen reader use.",
+        DONE, MEDIUM, _days(7.4), _days(-5),
     ),
     DemoTask(
-        "Скласти бюджет на наступний місяць",
-        "Врахувати подорожчання оренди та внески на депозит.",
-        IN_PROGRESS, MEDIUM, _days(4.9), _days(6),
+        "Task views: list, kanban board and table",
+        "Three views of the same filtered tasks, with density and description settings.",
+        DONE, HIGH, _days(8.7), _days(-6),
     ),
     DemoTask(
-        "Звіт для податкової за рік",
-        "Зібрати всі виписки з банку та акти виконаних робіт.",
-        TODO, HIGH, _days(21.6), _days(60),
+        "Filter tasks by deadline: exact day or range",
+        "A date picker for one day or a range, sent as deadline_from and deadline_to.",
+        DONE, MEDIUM, _days(9.6), _days(-7),
     ),
     DemoTask(
-        "Привітати колег із релізом",
-        "Замовити піцу на п'ятницю.",
-        DONE, LOW, _days(19.3), None,
+        "Delete a task and change its status from the row",
+        None,
+        DONE, MEDIUM, _days(11.4), _days(-9),
     ),
     DemoTask(
-        "Записати подкаст про віддалену роботу",
-        "Гість погодився на запис у четвер о 18:00.",
-        TODO, MEDIUM, _days(6.9), _days(1.5),
+        "Create and edit form with an undo toast",
+        "One dialog for both, validated like the API; every create, edit and status change can "
+        "be undone for a few seconds.",
+        DONE, HIGH, _days(12.2), _days(-9),
     ),
     DemoTask(
-        "Перевірити звіт тестового покриття",
-        "Знайти модулі, де покриття впало нижче 90%.",
-        DONE, LOW, _days(0.9), None,
+        "Search, status filter and sorting toolbar",
+        "Search waits for a pause in typing; the whole view lives in the address, so a reload "
+        "shows the same tasks.",
+        DONE, HIGH, _days(13.1), _days(-10),
+    ),
+    DemoTask(
+        "Settings: theme, tasks per page, Ukrainian and English",
+        "Kept in local storage, applied without a reload.",
+        DONE, MEDIUM, _days(13.9), _days(-11),
+    ),
+    DemoTask(
+        "Task list with pagination",
+        "Twenty tasks a page by default, with the page kept in the address.",
+        DONE, HIGH, _days(14.6), _days(-12),
+    ),
+    DemoTask(
+        "Frontend foundation: generated API client, design tokens and app shell",
+        "orval builds the client from the exported spec; Tailwind tokens and reka-ui give the "
+        "light and dark themes.",
+        DONE, HIGH, _days(15.4), _days(-13),
+    ),
+    DemoTask(
+        "Demo data seed for a fresh install",
+        None,
+        DONE, LOW, _days(16.5), None,
+    ),
+    DemoTask(
+        "Backend test suite with 100% coverage",
+        "Integration tests against a real PostgreSQL; the run fails if coverage drops.",
+        DONE, MEDIUM, _days(17.2), _days(-15),
+    ),
+    DemoTask(
+        "OpenAPI docs with request and response examples",
+        "Every endpoint, parameter and error described in Swagger UI and ReDoc, and the spec "
+        "exported for the client.",
+        DONE, MEDIUM, _days(17.8), _days(-15),
+    ),
+    DemoTask(
+        "Task list filters: status, title search, sorting and pagination",
+        "Search is case-insensitive and treats % and _ literally; deleted tasks never appear.",
+        DONE, HIGH, _days(19.3), _days(-17),
+    ),
+    DemoTask(
+        "Tasks API: schemas, validation and CRUD with soft delete",
+        "Pydantic models for create, update and read, consistent error responses, and deleted "
+        "tasks kept with a timestamp.",
+        DONE, HIGH, _days(20.1), _days(-18),
+    ),
+    DemoTask(
+        "FastAPI app skeleton and database layer",
+        "Settings from the environment, a health endpoint, async SQLAlchemy with Alembic and "
+        "the first Task migration.",
+        DONE, HIGH, _days(21.0), _days(-19),
+    ),
+    DemoTask(
+        "Docker Compose setup: database, backend and frontend in one command",
+        "PostgreSQL, the API and the web app start with `docker compose up`; health checks "
+        "decide the start order.",
+        DONE, HIGH, _days(21.6), _days(-20.5),
     ),
 )
 # fmt: on
@@ -219,9 +243,7 @@ async def seed_demo_tasks(session: AsyncSession, now: datetime, *, reset: bool =
     elif await session.scalar(select(exists().select_from(Task))):
         logger.info("demo_seed_skipped", extra={"reason": "tasks_exist"})
         return 0
-    # The custom order starts as newest first, the way the list opens.
-    newest_first = sorted(DEMO_TASKS, key=lambda demo: demo.created_ago)
-    session.add_all([_build(demo, now, place) for place, demo in enumerate(newest_first)])
+    session.add_all([_build(demo, now, place) for place, demo in enumerate(DEMO_TASKS)])
     await session.commit()
     logger.info("demo_seed_created", extra={"count": len(DEMO_TASKS)})
     return len(DEMO_TASKS)
