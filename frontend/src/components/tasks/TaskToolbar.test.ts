@@ -130,7 +130,7 @@ describe('sorting', () => {
   it('shows the current sorting on its button, named as the sort control', async () => {
     const toolbar = await mountToolbar()
 
-    expect(sortTrigger(toolbar).attributes('aria-label')).toBe('Sort: Newest first')
+    expect(sortTrigger(toolbar).attributes('aria-label')).toBe('Sort: Newest')
     expect(sortTrigger(toolbar).attributes('data-variant')).toBe('secondary')
   })
 
@@ -140,10 +140,10 @@ describe('sorting', () => {
     await openSort(toolbar)
 
     expect(sortItems().map((item) => item.textContent?.trim())).toEqual([
-      'Newest first',
-      'Oldest first',
-      'Deadline: soonest first',
-      'Deadline: latest first',
+      'Newest',
+      'Oldest',
+      'Deadline: soonest',
+      'Deadline: latest',
     ])
     expect(sortItems().map((item) => item.getAttribute('aria-checked'))).toEqual([
       'true',
@@ -154,12 +154,12 @@ describe('sorting', () => {
   })
 
   it.each([
-    ['Newest first', '-created_at'],
-    ['Oldest first', 'created_at'],
-    ['Deadline: soonest first', 'deadline'],
-    ['Deadline: latest first', '-deadline'],
+    ['Newest', '-created_at'],
+    ['Oldest', 'created_at'],
+    ['Deadline: soonest', 'deadline'],
+    ['Deadline: latest', '-deadline'],
   ])('sorts "%s" as %s', async (label, ordering) => {
-    history.replaceState(null, '', label === 'Newest first' ? '/?ordering=deadline' : '/')
+    history.replaceState(null, '', label === 'Newest' ? '/?ordering=deadline' : '/')
     const toolbar = await mountToolbar()
 
     await chooseSort(toolbar, label)
@@ -172,7 +172,7 @@ describe('sorting', () => {
     history.replaceState(null, '', '/?page=3')
     const toolbar = await mountToolbar()
 
-    await chooseSort(toolbar, 'Oldest first')
+    await chooseSort(toolbar, 'Oldest')
 
     expect(useListViewStore().page).toBe(1)
   })
@@ -183,7 +183,7 @@ describe('sorting', () => {
 
     await openSort(toolbar)
 
-    expect(sortTrigger(toolbar).attributes('aria-label')).toBe('Sort: Deadline: latest first')
+    expect(sortTrigger(toolbar).attributes('aria-label')).toBe('Sort: Deadline: latest')
     expect(sortItems().map((item) => item.getAttribute('aria-checked'))).toEqual([
       'false',
       'false',
@@ -210,12 +210,12 @@ describe('sorting', () => {
 
     await openSort(toolbar)
 
-    expect(sortTrigger(toolbar).attributes('aria-label')).toBe('Сортування: Спочатку нові')
+    expect(sortTrigger(toolbar).attributes('aria-label')).toBe('Сортування: Нові')
     expect(sortItems().map((item) => item.textContent?.trim())).toEqual([
-      'Спочатку нові',
-      'Спочатку старі',
-      'Дедлайн: спочатку найближчі',
-      'Дедлайн: спочатку найдальші',
+      'Нові',
+      'Старі',
+      'Дедлайн: найближчі',
+      'Дедлайн: найдальші',
     ])
   })
 })
@@ -323,9 +323,9 @@ describe('clear filters', () => {
     const toolbar = await mountToolbar()
 
     const label = sortTrigger(toolbar).get('span')
-    expect(label.text()).toBe('Deadline: latest first')
+    expect(label.text()).toBe('Deadline: latest')
     expect(label.classes()).toContain('truncate')
-    expect(sortTrigger(toolbar).attributes('aria-label')).toBe('Sort: Deadline: latest first')
+    expect(sortTrigger(toolbar).attributes('aria-label')).toBe('Sort: Deadline: latest')
   })
 
   // At 380px a shortened "Ne…" next to the deadline filter says nothing, so a phone gets only the icon.
@@ -337,16 +337,16 @@ describe('clear filters', () => {
     const trigger = sortTrigger(toolbar)
     expect(trigger.get('span').classes()).toContain('max-sm:hidden')
     expect(trigger.get('svg').classes()).not.toContain('max-sm:hidden')
-    expect(trigger.attributes('aria-label')).toBe('Sort: Deadline: soonest first')
-    expect(trigger.attributes('title')).toBe('Sort: Deadline: soonest first')
+    expect(trigger.attributes('aria-label')).toBe('Sort: Deadline: soonest')
+    expect(trigger.attributes('title')).toBe('Sort: Deadline: soonest')
   })
 
   it('updates its tooltip with the sorting', async () => {
     const toolbar = await mountToolbar()
 
-    await chooseSort(toolbar, 'Oldest first')
+    await chooseSort(toolbar, 'Oldest')
 
-    expect(sortTrigger(toolbar).attributes('title')).toBe('Sort: Oldest first')
+    expect(sortTrigger(toolbar).attributes('title')).toBe('Sort: Oldest')
   })
 
   // On a full row "Clear filters" keeps its words on one line; the sorting is what gives way.
