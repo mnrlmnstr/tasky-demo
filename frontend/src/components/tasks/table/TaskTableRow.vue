@@ -1,19 +1,20 @@
 <script setup lang="ts">
-import { CircleAlert, Ellipsis, Trash2 } from 'lucide-vue-next'
+import { Ellipsis, Trash2 } from 'lucide-vue-next'
 import { computed, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { TaskRead } from '../../../api/generated/client'
 import { useSettingsStore } from '../../../stores/settings'
-import { useTaskFormStore } from '../../../stores/taskForm'
-import { FOCUS_RING_CLASS } from '../../ui/control'
+import { usePriorityChange, useStatusChange, useTaskDelete } from '../../../stores/taskActions'
 import DropdownMenu from '../../ui/DropdownMenu.vue'
 import IconButton from '../../ui/IconButton.vue'
 import PriorityMenu from '../PriorityMenu.vue'
-import { useFocusOnLeave, usePriorityChange, useStatusChange, useTaskDelete } from '../taskActions'
+import { useFocusOnLeave } from '../focusOnLeave'
+import TaskDeadline from '../TaskDeadline.vue'
 import TaskDeleteConfirm from '../TaskDeleteConfirm.vue'
 import { useTaskDates } from '../taskDisplay'
 import TaskStatusMenu from '../TaskStatusMenu.vue'
+import TaskTitleButton from '../TaskTitleButton.vue'
 
 const { task } = defineProps<{ task: TaskRead }>()
 
@@ -50,41 +51,13 @@ useFocusOnLeave(useTemplateRef<HTMLElement>('row'), () => isDeleting.value || pi
       </span>
     </td>
     <td class="min-w-48 pr-4 font-medium" :class="cellClass">
-      <p data-testid="task-title" class="wrap-anywhere" :class="{ 'text-text-muted': status === 'done' }">
-        <button
-          type="button"
-          :aria-label="t('form.editTask', { title: task.title })"
-          class="cursor-pointer rounded-item text-left decoration-text-muted underline-offset-4 hover:underline"
-          :class="FOCUS_RING_CLASS"
-          @click="useTaskFormStore().openEdit(task)"
-        >
-          {{ task.title }}
-        </button>
-      </p>
+      <TaskTitleButton :task="task" :done="status === 'done'" />
     </td>
     <td class="pr-4" :class="cellClass">
       <PriorityMenu :priority="priority" :busy="isChangingPriority" :disabled="isBusy" @select="changePriority" />
     </td>
     <td class="pr-4 whitespace-nowrap text-text-muted" :class="cellClass">
-      <span
-        data-testid="task-deadline"
-        class="inline-flex items-center gap-1"
-        :class="{ 'text-danger-text': isOverdue }"
-        :title="isOverdue ? t('task.overdue') : undefined"
-      >
-        <template v-if="deadline === null">
-          <span aria-hidden="true">—</span>
-          <span class="sr-only">{{ t('task.noDeadline') }}</span>
-        </template>
-        <template v-else>
-          {{ deadline }}
-          <!-- The table keeps its columns narrow: an icon marks it, the words are for screen readers and the tooltip. -->
-          <template v-if="isOverdue">
-            <CircleAlert class="size-3.5 shrink-0" aria-hidden="true" />
-            <span class="sr-only"> · {{ t('task.overdue') }}</span>
-          </template>
-        </template>
-      </span>
+      <TaskDeadline :deadline="deadline" :overdue="isOverdue" icon />
     </td>
     <td class="pr-2 whitespace-nowrap text-text-muted" :class="cellClass">
       <time :datetime="task.created_at" :title="createdAt">{{ createdAgo }}</time>{{ " " }}

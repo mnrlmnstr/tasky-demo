@@ -3,23 +3,14 @@ import type { DateValue } from '@internationalized/date'
 import { computed, nextTick, reactive, ref, shallowReactive, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import {
-  createTask,
-  updateTask,
-  type TaskCreate,
-  type TaskPriority,
-  type TaskRead,
-  type TaskStatus,
-  type TaskUpdate,
-} from '../../api/generated/client'
-import { ApiError, failureKind, type FieldError } from '../../api/http'
+import type { TaskPriority, TaskRead, TaskStatus } from '../../api/generated/client'
+import type { FieldError } from '../../api/http'
 import { TASK_PRIORITIES } from '../../api/taskPriorities'
 import { TASK_STATUSES } from '../../api/taskStatuses'
 import { useClock } from '../../i18n/clock'
 import { errorMessageKey } from '../../i18n/errorMessages'
 import { useTaskFormStore } from '../../stores/taskForm'
-import { tasksChanged } from '../../stores/taskChanges'
-import { offerUndoOfCreate, offerUndoOfEdit } from '../../stores/undoActions'
+import { useTaskFormSubmit, type TaskFormFailure, type TaskFormPayload } from '../../stores/taskFormSubmit'
 import Button from '../ui/Button.vue'
 import { FOCUS_RING_CLASS } from '../ui/control'
 import Dialog from '../ui/Dialog.vue'
@@ -46,11 +37,9 @@ interface Values {
   time: string
 }
 
-/** The same as the API takes it: every field the form shows, an empty one as `null`. */
-type Payload = Required<Omit<TaskUpdate, 'position'>>
-
 const { t } = useI18n()
 const form = useTaskFormStore()
+const { saving, save } = useTaskFormSubmit()
 const timeZone = editingTimeZone(useClock().timeZone)
 
 const formId = useId()
@@ -71,7 +60,7 @@ function valuesOf(task: TaskRead | null): Values {
   }
 }
 
-function payloadOf(fields: Values): Payload {
+function payloadOf(fields: Values): TaskFormPayload {
   const description = fields.description.trim()
   return {
     title: apiTitle(fields.title),
@@ -93,7 +82,6 @@ const errors = reactive<Partial<Record<FormField, string>>>({})
 const failure = ref<string | null>(null)
 /** `422` errors about fields the form does not show. */
 const otherErrors = ref<FieldError[]>([])
-const saving = ref(false)
 /** The edited task turned out to be deleted: there is nothing left to save. */
 const gone = ref(false)
 
@@ -187,35 +175,14 @@ async function focusFirstInvalid(): Promise<void> {
     ?.focus()
 }
 
-function changedFields(payload: Payload): TaskUpdate {
-  return Object.fromEntries(FORM_FIELDS.filter((field) => payload[field] !== untouched[field]).map((field) => [field, payload[field]]))
-}
-
-// A new task leaves out what was left empty; the API fills in the rest.
-function filledFields(payload: Payload): TaskCreate {
-  const { description, deadline, ...required } = payload
-  return {
-    ...required,
-    ...(description === null ? {} : { description }),
-    ...(deadline === null ? {} : { deadline }),
-  }
-}
-
-async function showFailure(reason: unknown, before: TaskRead | null): Promise<void> {
-  const editing = before !== null
-  const kind = failureKind(reason)
-  const fieldErrors = reason instanceof ApiError ? reason.fieldErrors : []
-  for (const error of fieldErrors) {
+// The API's `422` answers go to the fields they are about; the rest is shown under the form.
+async function showFailure(result: TaskFormFailure): Promise<void> {
+  for (const error of result.fieldErrors) {
     if (isFormField(error.field)) errors[error.field] ??= serverErrorMessage(error)
     else otherErrors.value.push(error)
   }
-  if (kind === 'not_found' && editing) {
-    gone.value = true
-    tasksChanged({ deleted: before.id })
-  }
-  // Creating has no task to be missing: a 404 there is the server's fault.
-  const shown = kind === 'not_found' && !editing ? 'server' : kind
-  if (fieldErrors.length === 0) failure.value = errorMessageKey(shown)
+  if (result.gone) gone.value = true
+  if (result.kind !== null) failure.value = errorMessageKey(result.kind)
   await focusFirstInvalid()
 }
 
@@ -228,28 +195,8 @@ async function submit(): Promise<void> {
     return
   }
 
-  const before = form.task
-  const payload = payloadOf(values)
-  const changes = changedFields(payload)
-  if (before !== null && Object.keys(changes).length === 0) {
-    form.close()
-    return
-  }
-
-  saving.value = true
-  let saved: TaskRead
-  try {
-    saved = before === null ? await createTask(filledFields(payload)) : await updateTask(before.id, changes)
-  } catch (reason) {
-    saving.value = false
-    await showFailure(reason, before)
-    return
-  }
-  saving.value = false
-  form.close()
-  tasksChanged()
-  if (before === null) offerUndoOfCreate(saved)
-  else offerUndoOfEdit(before, saved)
+  const result = await save(payloadOf(values), untouched)
+  if (result !== null) await showFailure(result)
 }
 
 const statusOptions = computed(() =>

@@ -6,14 +6,16 @@ import { useI18n } from 'vue-i18n'
 import type { TaskRead, TaskStatus } from '../../../api/generated/client'
 import { useBoardStore } from '../../../stores/board'
 import { useSettingsStore } from '../../../stores/settings'
-import { useTaskFormStore } from '../../../stores/taskForm'
-import { FOCUS_RING_CLASS } from '../../ui/control'
+import { usePriorityChange, useTaskDelete } from '../../../stores/taskActions'
 import IconButton from '../../ui/IconButton.vue'
 import PriorityMenu from '../PriorityMenu.vue'
-import { useFocusOnLeave, usePriorityChange, useTaskDelete } from '../taskActions'
+import { useFocusOnLeave } from '../focusOnLeave'
+import TaskDeadline from '../TaskDeadline.vue'
 import TaskDeleteConfirm from '../TaskDeleteConfirm.vue'
+import TaskDescription from '../TaskDescription.vue'
 import { useTaskDates } from '../taskDisplay'
 import TaskStatusMenu from '../TaskStatusMenu.vue'
+import TaskTitleButton from '../TaskTitleButton.vue'
 
 const { task } = defineProps<{ task: TaskRead }>()
 
@@ -44,10 +46,6 @@ const titleId = useId()
 const { deadline, isOverdue } = useTaskDates(
   () => task,
   computed(() => task.status),
-)
-
-const description = computed(() =>
-  settings.showDescriptions && task.description?.trim() ? task.description : null,
 )
 
 // A drag event of the browser always carries its data transfer. Some browsers start a drag only with data set.
@@ -87,21 +85,12 @@ useFocusOnLeave(useTemplateRef<HTMLElement>('card'), () => isBusy.value)
         @select="emit('move', $event)"
         @reorder="emit('reorder', $event)"
       />
-      <p
-        data-testid="task-title"
-        class="min-w-0 flex-1 text-sm leading-6 font-medium wrap-anywhere"
-        :class="{ 'text-text-muted': task.status === 'done' }"
-      >
-        <button
-          type="button"
-          :aria-label="t('form.editTask', { title: task.title })"
-          class="cursor-pointer rounded-item text-left decoration-text-muted underline-offset-4 hover:underline"
-          :class="FOCUS_RING_CLASS"
-          @click="useTaskFormStore().openEdit(task)"
-        >
-          <span :id="titleId">{{ task.title }}</span>
-        </button>
-      </p>
+      <TaskTitleButton
+        :task="task"
+        :done="task.status === 'done'"
+        :title-id="titleId"
+        class="min-w-0 flex-1 text-sm leading-6 font-medium"
+      />
       <IconButton
         :label="t('actions.delete')"
         :aria-disabled="isBusy ? 'true' : undefined"
@@ -112,18 +101,10 @@ useFocusOnLeave(useTemplateRef<HTMLElement>('card'), () => isBusy.value)
       </IconButton>
       <TaskDeleteConfirm v-model:open="isConfirmingDelete" :title="task.title" @confirm="deleteConfirmed" />
     </div>
-    <p
-      v-if="description !== null"
-      data-testid="task-description"
-      class="truncate text-[13px] leading-5 text-text-muted"
-    >
-      {{ description }}
-    </p>
+    <TaskDescription :task="task" />
     <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs leading-5 text-text-muted">
       <PriorityMenu :priority="priority" :busy="isChangingPriority" :disabled="isBusy" @select="changePriority" />
-      <span v-if="deadline !== null" data-testid="task-deadline" :class="{ 'text-danger-text': isOverdue }">
-        {{ t(isOverdue ? 'task.dueOverdue' : 'task.due', { date: deadline }) }}
-      </span>
+      <TaskDeadline v-if="deadline !== null" :deadline="deadline" :overdue="isOverdue" />
     </div>
   </article>
 </template>
