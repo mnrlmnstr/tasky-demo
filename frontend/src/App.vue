@@ -4,15 +4,18 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import SettingsDialog from './components/settings/SettingsDialog.vue'
+import TaskFormDialog from './components/tasks/TaskFormDialog.vue'
 import TaskList from './components/tasks/TaskList.vue'
 import TaskToolbar from './components/tasks/TaskToolbar.vue'
 import Button from './components/ui/Button.vue'
 import IconButton from './components/ui/IconButton.vue'
 import UndoToast from './components/undo/UndoToast.vue'
+import { useTaskFormStore } from './stores/taskForm'
 import { useTasksStore } from './stores/tasks'
 
 const { t } = useI18n()
 const settingsOpen = ref(false)
+const taskForm = useTaskFormStore()
 
 useTasksStore().start()
 </script>
@@ -25,10 +28,11 @@ useTasksStore().start()
         <Settings aria-hidden="true" />
       </IconButton>
       <SettingsDialog v-model:open="settingsOpen" />
-      <Button variant="primary">
+      <Button variant="primary" @click="taskForm.openCreate()">
         <Plus class="size-4" aria-hidden="true" />
         {{ t('header.newTask') }}
       </Button>
+      <TaskFormDialog />
     </header>
     <main class="px-5 py-5">
       <TaskToolbar class="mb-4" />

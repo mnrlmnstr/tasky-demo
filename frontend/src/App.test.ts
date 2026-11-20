@@ -77,18 +77,6 @@ describe('app shell', () => {
     expect(icons.map((icon) => icon.attributes('aria-hidden'))).toEqual(['true', 'true'])
   })
 
-  it('keeps the page as it is when "New task" is pressed, since nothing is wired to it yet', async () => {
-    const api = fakeTasksApi()
-    const page = mountApp()
-    await api.respondTo(0, pageOf(['Write the report']))
-    const before = page.html()
-
-    await page.get('header button[data-variant="primary"]').trigger('click')
-    await flushPromises()
-
-    expect(page.html()).toBe(before)
-    expect(api.queries).toHaveLength(1)
-  })
 })
 
 describe('task list on the page', () => {

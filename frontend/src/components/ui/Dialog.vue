@@ -20,6 +20,8 @@ defineProps<{
   description?: string
   /** Accessible name of the close button. */
   closeLabel: string
+  /** Room for a form with fields side by side, where the screen has it. */
+  wide?: boolean
 }>()
 </script>
 
@@ -28,7 +30,7 @@ defineProps<{
     <DialogPortal>
       <DialogOverlay data-testid="dialog-overlay" :class="SCRIM_CLASS" />
       <!-- Without a description the dialog must not point at one: reka-ui warns otherwise. -->
-      <DialogContent :class="PANEL_CLASS" v-bind="description ? {} : { 'aria-describedby': undefined }">
+      <DialogContent :class="[PANEL_CLASS, { 'sm:max-w-[640px]': wide }]" v-bind="description ? {} : { 'aria-describedby': undefined }">
         <header class="flex items-start justify-between gap-4">
           <div class="flex flex-col gap-1">
             <DialogTitle :class="TITLE_CLASS">{{ title }}</DialogTitle>

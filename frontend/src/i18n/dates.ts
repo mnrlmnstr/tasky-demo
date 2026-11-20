@@ -1,7 +1,7 @@
 const HAS_UTC_OFFSET = /(Z|[+-]\d{2}:?\d{2})$/i
 
 // The API speaks UTC; a timestamp that lost its offset would otherwise be read in the browser's own zone.
-function parseInstant(timestamp: string): Date | null {
+export function parseInstant(timestamp: string): Date | null {
   const instant = new Date(HAS_UTC_OFFSET.test(timestamp) ? timestamp : `${timestamp}Z`)
   return Number.isNaN(instant.getTime()) ? null : instant
 }
