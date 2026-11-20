@@ -9,6 +9,7 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuRoot,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from 'reka-ui'
 import { computed, type Component } from 'vue'
@@ -26,7 +27,7 @@ const ITEM_CLASS =
 
 const ICON_CLASS = 'size-4 shrink-0 text-text-muted'
 
-const { checked } = defineProps<{
+const { checked, actions = [] } = defineProps<{
   items: DropdownMenuItemOption<T>[]
   /**
    * Makes the menu radio-style: the item with this value is shown as the current choice,
@@ -34,9 +35,11 @@ const { checked } = defineProps<{
    */
   // eslint-disable-next-line vue/require-default-prop -- left out (undefined) means a plain menu, which a default would hide
   checked?: T | null
+  /** Plain items after the others, set apart by a line: things to do rather than a choice. */
+  actions?: DropdownMenuItemOption[]
 }>()
 
-const emit = defineEmits<{ select: [value: T] }>()
+const emit = defineEmits<{ select: [value: T]; action: [value: string] }>()
 
 const isRadio = computed(() => checked !== undefined)
 </script>
@@ -73,6 +76,21 @@ const isRadio = computed(() => checked !== undefined)
             </DropdownMenuItemIndicator>
           </component>
         </component>
+        <template v-if="actions.length > 0">
+          <DropdownMenuSeparator class="mx-1 my-1 h-px bg-border" />
+          <DropdownMenuGroup>
+            <DropdownMenuItem
+              v-for="item in actions"
+              :key="item.value"
+              :disabled="item.disabled"
+              :class="ITEM_CLASS"
+              @select="emit('action', item.value)"
+            >
+              <component :is="item.icon" v-if="item.icon" :class="ICON_CLASS" aria-hidden="true" />
+              <span class="flex-1">{{ item.label }}</span>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </template>
       </DropdownMenuContent>
     </DropdownMenuPortal>
   </DropdownMenuRoot>

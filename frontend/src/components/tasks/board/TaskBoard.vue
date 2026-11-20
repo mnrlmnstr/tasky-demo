@@ -67,7 +67,7 @@ function moveByMenu(task: TaskRead, status: TaskStatus): Promise<void> {
 // Moved up or down, the card is put in its new place, which moves the focus out of it.
 function reorderByMenu(task: TaskRead, delta: -1 | 1): Promise<void> {
   void board.moveBy(task, delta)
-  return focusCard(task, 'task-move')
+  return focusCard(task, 'task-status')
 }
 </script>
 

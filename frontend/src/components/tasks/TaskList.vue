@@ -129,7 +129,6 @@ async function moveByMenu(task: TaskRead, delta: -1 | 1): Promise<void> {
                 :class="settings.density === 'compact' ? 'pt-0.5' : 'pt-2'"
               >
                 <TaskMoveMenu
-                  handle
                   :title="task.title"
                   :can-move-up="order.canMoveBy(task, -1)"
                   :can-move-down="order.canMoveBy(task, 1)"

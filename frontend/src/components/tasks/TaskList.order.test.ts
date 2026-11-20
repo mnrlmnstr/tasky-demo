@@ -217,4 +217,16 @@ describe('the keyboard way to move a row', () => {
     expect(titles(list)).toEqual(['Call', 'Write', 'Read'])
     expect(document.activeElement).toBe(handle(list, 'Write'))
   })
+
+  it('moves a row up past the one before it', async () => {
+    const { list, server } = await openList()
+
+    handle(list, 'Read').click()
+    await settle()
+    moveItems()[0].click()
+    await settle()
+
+    expect(server.changes.map((change) => change.body)).toEqual([{ position: 0.5 }])
+    expect(titles(list)).toEqual(['Write', 'Read', 'Call'])
+  })
 })

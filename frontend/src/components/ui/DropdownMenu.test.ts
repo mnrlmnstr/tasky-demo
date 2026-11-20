@@ -293,3 +293,41 @@ describe('DropdownMenu', () => {
     expect(getItem('Edit').querySelector('[data-testid="pencil-icon"]')).not.toBeNull()
   })
 })
+
+describe('actions after the items', () => {
+  afterEach(() => {
+    mounted?.unmount()
+    mounted = undefined
+  })
+
+  it('are set apart by a line, report their own value, and can be turned off', async () => {
+    const menu = await mountMenu({
+      checked: 'edit',
+      actions: [
+        { value: 'up', label: 'Move up', icon: PencilIcon },
+        { value: 'down', label: 'Move down', disabled: true },
+      ],
+    })
+    getTrigger().click()
+    await settle()
+
+    expect(getMenu().querySelector('[role="separator"]')).not.toBeNull()
+    expect(getItems().map((item) => [item.textContent?.trim(), item.hasAttribute('data-disabled')])).toEqual([
+      ['Move up', false],
+      ['Move down', true],
+    ])
+    getItem('Move up').click()
+    await settle()
+
+    expect(menu.emitted('action')).toEqual([['up']])
+    expect(menu.emitted('select')).toBeUndefined()
+  })
+
+  it('are left out, with their line, when there are none', async () => {
+    await mountMenu()
+    getTrigger().click()
+    await settle()
+
+    expect(getMenu().querySelector('[role="separator"]')).toBeNull()
+  })
+})

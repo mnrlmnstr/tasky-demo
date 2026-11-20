@@ -90,7 +90,7 @@ A single-page Vue 3 app served by the Vite dev server at http://localhost:8080. 
 
 - **Views** (switch in the toolbar):
   - list: one row per task with status, title, priority, deadline and creation date, paginated;
-  - board: three columns (To do, In progress, Done) with counts; drag a card to any place in any column: a line shows where it lands, and dragging switches the sorting to the custom order (the card's status menu changes the column, and its move menu moves it up or down, from the keyboard); each column shows up to 100 tasks and says how many it leaves out;
+  - board: three columns (To do, In progress, Done) with counts; drag a card to any place in any column: a line shows where it lands, and dragging switches the sorting to the custom order (from the keyboard, the card's status menu changes the column and has Move up and Move down); each column shows up to 100 tasks and says how many it leaves out;
   - table: sortable Deadline and Created headers and an actions menu on each row, paginated.
 - **Finding tasks:**
   - search by title (sent after a 300 ms pause in typing);

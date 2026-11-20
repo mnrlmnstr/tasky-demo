@@ -440,18 +440,6 @@ describe('dragging a card to a place', () => {
     expect(lineAt(board, 'todo')).toEqual([])
   })
 
-  it('starts from the move button too, dragging the card it is on', async () => {
-    const { board } = await openBoard(rows())
-
-    card(board, 'Call').get('[data-testid="task-move"]').element.dispatchEvent(dragEvent('dragstart'))
-    await nextTick()
-    layOut(board)
-    const over = await dragOver(board, 'done')
-
-    expect(over.defaultPrevented).toBe(true)
-    expect(column(board, 'done').attributes('data-drop-target')).toBe('true')
-  })
-
   it('offers no place to a drag that did not start on this board', async () => {
     const { board } = await openBoard(rows())
 
@@ -518,17 +506,16 @@ describe('the keyboard way to move a card up or down', () => {
   }
 
   async function openMoveMenu(board: VueWrapper, title: string) {
-    card(board, title).get<HTMLButtonElement>('[data-testid="task-move"]').element.click()
+    card(board, title).get<HTMLButtonElement>('[data-testid="task-status"]').element.click()
     await settle()
     return moveItems()
   }
 
-  it('offers Move up and Move down, each off at its end of the column', async () => {
+  it('is Move up and Move down in the status menu, each off at its end of the column', async () => {
     const { board } = await openBoard(rows())
 
     const items = await openMoveMenu(board, 'Call')
 
-    expect(card(board, 'Call').get('[data-testid="task-move"]').attributes('aria-label')).toBe('Move «Call»')
     expect(items.map((item) => [item.textContent?.trim(), item.hasAttribute('data-disabled')])).toEqual([
       ['Move up', false],
       ['Move down', true],
@@ -545,7 +532,18 @@ describe('the keyboard way to move a card up or down', () => {
     expect(server.changes.map((change) => change.body)).toEqual([{ position: -1 }])
     expect(useListViewStore().ordering).toBe('position')
     expect(cardTitles(board, 'todo')).toEqual(['Call', 'Write'])
-    expect(document.activeElement).toBe(card(board, 'Call').get('[data-testid="task-move"]').element)
+    expect(document.activeElement).toBe(card(board, 'Call').get('[data-testid="task-status"]').element)
+  })
+
+  it('moves the card down past the next one', async () => {
+    const { board, server } = await openBoard(rows())
+
+    const [, down] = await openMoveMenu(board, 'Write')
+    down.click()
+    await settle()
+
+    expect(server.changes.map((change) => change.body)).toEqual([{ position: 2 }])
+    expect(cardTitles(board, 'todo')).toEqual(['Call', 'Write'])
   })
 
   it('offers nothing while the card is moving', async () => {
