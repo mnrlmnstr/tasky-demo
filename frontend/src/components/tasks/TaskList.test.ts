@@ -322,13 +322,32 @@ describe('errors', () => {
     expect(retry.attributes('aria-busy')).toBe('true')
   })
 
+  it('keeps "Try again" focusable while it asks again, and does not ask twice when it is pressed again', async () => {
+    const api = fakeTasksApi()
+    const list = openList()
+    await api.loseConnection(0)
+    const retry = list.get<HTMLButtonElement>('[role="alert"] button')
+    retry.element.focus()
+
+    await retry.trigger('click')
+    await retry.trigger('click')
+
+    expect(api.queries).toHaveLength(2)
+    expect(retry.element.disabled).toBe(false)
+    expect(retry.attributes('aria-disabled')).toBe('true')
+    expect(retry.find('[data-testid="button-spinner"]').exists()).toBe(true)
+    expect(document.activeElement).toBe(retry.element)
+  })
+
   it('leaves "Try again" ready to press once the request has failed', async () => {
     const api = fakeTasksApi()
     const list = openList()
 
     await api.failWith(0, 500)
 
-    expect(list.get('[role="alert"] button').attributes('aria-busy')).toBeUndefined()
+    const retry = list.get('[role="alert"] button')
+    expect(retry.attributes('aria-busy')).toBeUndefined()
+    expect(retry.attributes('aria-disabled')).toBeUndefined()
   })
 
   it('replaces the error with the tasks when the retry succeeds', async () => {

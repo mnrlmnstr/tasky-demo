@@ -67,6 +67,26 @@ describe('Button', () => {
     expect(button.emitted('click')).toBeUndefined()
   })
 
+  it('shows progress but stays focusable while busy, leaving the click to its owner to ignore', async () => {
+    const button = mount(Button, { props: { busy: true }, slots: { default: 'Retry' }, attachTo: document.body })
+    button.element.focus()
+
+    button.element.click()
+
+    expect(button.element.disabled).toBe(false)
+    expect(button.attributes('aria-busy')).toBe('true')
+    expect(button.attributes('aria-disabled')).toBe('true')
+    expect(button.find('[data-testid="button-spinner"]').exists()).toBe(true)
+    expect(document.activeElement).toBe(button.element)
+    button.unmount()
+  })
+
+  it('is not marked unavailable when it is not busy', () => {
+    const button = mount(Button, { slots: { default: 'Retry' } })
+
+    expect(button.attributes('aria-disabled')).toBeUndefined()
+  })
+
   it('keeps its label and hides the spinner from assistive technology while loading', () => {
     const button = mount(Button, { props: { loading: true }, slots: { default: 'Save' } })
 

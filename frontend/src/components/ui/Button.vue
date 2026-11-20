@@ -17,11 +17,18 @@ const {
   type = 'button',
   disabled = false,
   loading = false,
+  busy = false,
 } = defineProps<{
   variant?: ButtonVariant
   type?: 'button' | 'submit' | 'reset'
   disabled?: boolean
+  /** Shows progress and cannot be pressed: natively disabled, so it gives up the keyboard focus. */
   loading?: boolean
+  /**
+   * Shows progress the same way but stays focusable, for a button the user may press again and again
+   * (a retry): its owner ignores the click meanwhile.
+   */
+  busy?: boolean
 }>()
 </script>
 
@@ -29,13 +36,14 @@ const {
   <button
     :type="type"
     :disabled="disabled || loading"
-    :aria-busy="loading ? 'true' : undefined"
+    :aria-busy="loading || busy ? 'true' : undefined"
+    :aria-disabled="busy ? 'true' : undefined"
     :data-variant="variant"
     class="h-9 gap-2 rounded-control px-3.5 text-sm font-medium"
     :class="[CONTROL_CLASS, VARIANT_CLASSES[variant]]"
   >
     <LoaderCircle
-      v-if="loading"
+      v-if="loading || busy"
       data-testid="button-spinner"
       class="size-4 animate-spin"
       aria-hidden="true"

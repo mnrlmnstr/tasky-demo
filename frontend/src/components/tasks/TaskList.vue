@@ -35,6 +35,11 @@ const announcement = computed(() => {
   return t(hasRows.value ? 'list.reloading' : 'list.loading')
 })
 
+// "Try again" stays focusable while it asks, so pressing it again then must do nothing.
+function retry(): void {
+  if (!isRequesting.value) tasks.retry()
+}
+
 // The controls count from the page of the rows on screen. After a page failed to load that is still
 // the page before it, so asking for the same page once more is a retry, not a change of the view.
 function goToPage(page: number): void {
@@ -65,7 +70,7 @@ provide(FOCUS_TASK_LIST, () => region.value?.focus({ preventScroll: true }))
       class="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-control bg-danger-soft px-4 py-3"
     >
       <p class="min-w-0 flex-1 basis-60 text-sm text-danger-text">{{ errorMessage }}</p>
-      <Button :loading="isRequesting" @click="tasks.retry()">{{ t('list.retry') }}</Button>
+      <Button :busy="isRequesting" class="aria-disabled:cursor-progress" @click="retry">{{ t('list.retry') }}</Button>
     </div>
 
     <template v-if="hasRows">
