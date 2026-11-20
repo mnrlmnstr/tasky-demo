@@ -69,7 +69,7 @@ The address wins over local storage. Invalid values in either are replaced with 
 
 ### Demo data
 
-On first start the backend loads 30 demo tasks (titles and descriptions in Ukrainian) with mixed statuses and priorities, past, future and missing deadlines, and creation dates spread over the last 30 days. They are loaded only into a tasks table with no rows at all (soft-deleted tasks count), so restarts add nothing and your changes are kept.
+On first start the backend loads 30 demo tasks: the story of building Tasky itself. The shipped backend and frontend work is done, the current work is in progress and a few next steps are to do, with mixed priorities, overdue, upcoming and missing deadlines, and creation dates spread over the last three weeks in the order the work happened. Five titles mention the board, so searching `board` shows the search at work. They are loaded only into a tasks table with no rows at all (soft-deleted tasks count), so restarts add nothing and your changes are kept.
 
 - Start with an empty database: set `SEED_DEMO_DATA=false` before the first start.
 - Replace all tasks with a fresh demo set at any time: `docker compose exec backend python -m app.seed --reset`.
@@ -186,7 +186,7 @@ Query parameters for `GET /tasks`:
 | Param       | Example       | Description                                                                                        |
 | ----------- | ------------- | -------------------------------------------------------------------------------------------------- |
 | `status`    | `in_progress` | filter by status                                                                                   |
-| `search`    | `звіт`        | case-insensitive substring of the title; `%` and `_` match literally                               |
+| `search`    | `board`       | case-insensitive substring of the title; `%` and `_` match literally                               |
 | `ordering`  | `-created_at` | `created_at` or `deadline`, prefix `-` for descending; default `-created_at`; no deadline sorts last; `position` is the custom order (ascending, ties newest first) |
 | `page`      | `1`           | page number, starting at 1 (default 1)                                                             |
 | `page_size` | `20`          | items per page, 1–100 (default 20)                                                                 |

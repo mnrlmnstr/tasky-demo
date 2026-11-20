@@ -465,7 +465,7 @@
             "schema": {
               "description": "Only tasks whose title contains this text, ignoring case.",
               "examples": [
-                "\u0437\u0432\u0456\u0442"
+                "board"
               ],
               "title": "Search",
               "type": "string"
