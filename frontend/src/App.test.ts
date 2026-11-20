@@ -138,7 +138,7 @@ describe('task list on the page', () => {
     })
 
     const row = page.get('main li')
-    expect(row.get('[role="img"]').attributes('aria-label')).toBe('In progress')
+    expect(row.get('[data-testid="task-status"]').attributes('aria-label')).toBe('Status: In progress. Change status')
     expect(row.get('[data-tone]').text()).toBe('High')
     expect(row.get('[data-testid="task-deadline"]').text()).toMatch(/^Due Feb 3, 2001, .+ · Overdue$/s)
     expect(row.get('time').text()).toMatch(/^Created \d+ years ago$/)
@@ -188,7 +188,7 @@ describe('task list on the page', () => {
 
     expect(page.get('header button[data-variant="primary"]').text()).toBe('Нова задача')
     expect(page.get('main [data-testid="task-total"]').text()).toBe('3 задачі')
-    expect(page.get('main [role="img"]').attributes('aria-label')).toBe('До виконання')
+    expect(page.get('main [data-testid="task-status"]').attributes('aria-label')).toBe('Статус: До виконання. Змінити статус')
   })
 })
 

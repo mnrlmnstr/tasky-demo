@@ -22,11 +22,15 @@ const undo = useUndoStore()
 
 const closeButton = useTemplateRef('closeButton')
 
-// What the toast says: the action that can be undone, or why undoing it failed. Empty = no toast.
+// What the toast says: the action that can be undone, why undoing it failed, or why another action
+// failed. Empty = no toast.
 const message = computed(() => {
+  if (undo.notice !== null) return t(ERROR_MESSAGES[undo.notice])
   if (undo.error !== null) return t('undo.failed', { reason: t(ERROR_MESSAGES[undo.error]) })
   return undo.label === null ? '' : t(`undo.labels.${undo.label}`)
 })
+
+const isFailure = computed(() => undo.error !== null || undo.notice !== null)
 
 // The window does not run out under the pointer or while the keyboard is on the toast.
 const hovered = ref(false)
@@ -63,14 +67,11 @@ watch(message, (text) => {
 })
 
 // The Undo button is gone after a failure: a keyboard user is put on the button that is left.
-watch(
-  () => undo.error,
-  async (error) => {
-    if (error === null || !focused.value) return
-    await nextTick()
-    closeButton.value?.$el.focus()
-  },
-)
+watch(isFailure, async (failed) => {
+  if (!failed || !focused.value) return
+  await nextTick()
+  closeButton.value?.$el.focus()
+})
 </script>
 
 <template>
@@ -94,7 +95,7 @@ watch(
         <p
           aria-hidden="true"
           class="mr-2 min-w-0 text-sm"
-          :class="undo.error === null ? 'text-text' : 'text-danger-text'"
+          :class="isFailure ? 'text-danger-text' : 'text-text'"
         >
           {{ message }}
         </p>

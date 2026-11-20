@@ -37,7 +37,7 @@ async function openApp() {
 }
 
 function statusIcons(page: VueWrapper): string[] {
-  return page.findAll('main li [role="img"]').map((icon) => icon.attributes('aria-label') ?? '')
+  return page.findAll('main li [data-testid="task-status"]').map((icon) => icon.attributes('aria-label') ?? '')
 }
 
 beforeEach(() => {
@@ -68,7 +68,7 @@ describe('undo in the app', () => {
     const after: TaskRead = { ...before, status: 'done' }
     serveTasks([after, task('Other')])
     const page = await openApp()
-    expect(statusIcons(page)).toEqual(['Done', 'To do'])
+    expect(statusIcons(page)).toEqual(['Status: Done. Change status', 'Status: To do. Change status'])
 
     offerUndoOfStatusChange(before, after)
     await flushPromises()
@@ -76,7 +76,7 @@ describe('undo in the app', () => {
     await page.get(`${TOAST} button[data-variant="ghost"]`).trigger('click')
     await flushPromises()
 
-    expect(statusIcons(page)).toEqual(['In progress', 'To do'])
+    expect(statusIcons(page)).toEqual(['Status: In progress. Change status', 'Status: To do. Change status'])
     expect(page.find(TOAST).exists()).toBe(false)
   })
 
