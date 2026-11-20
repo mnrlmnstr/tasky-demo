@@ -44,6 +44,7 @@ async def test_create_task_returns_201_with_the_created_task(
         "deadline",
         "created_at",
         "updated_at",
+        "position",
     }
 
 

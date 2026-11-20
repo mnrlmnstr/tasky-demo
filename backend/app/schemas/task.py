@@ -42,6 +42,8 @@ Title = Annotated[
     AfterValidator(_storable),
 ]
 Deadline = Annotated[AwareDatetime, AfterValidator(_to_utc)]
+# Strict: a JSON number only, never a numeric string or a boolean.
+Position = Annotated[float, Field(strict=True, allow_inf_nan=False)]
 
 
 def _without_null(schema: dict[str, Any]) -> None:
@@ -60,6 +62,7 @@ class TaskOrdering(StrEnum):
     CREATED_AT_DESC = "-created_at"
     DEADLINE = "deadline"
     DEADLINE_DESC = "-deadline"
+    POSITION = "position"
 
 
 class TaskListQuery(BaseModel):
@@ -100,7 +103,8 @@ class TaskListQuery(BaseModel):
         default=TaskOrdering.CREATED_AT_DESC,
         description=(
             "Sort by `created_at` or `deadline`; a leading `-` sorts descending. "
-            "Tasks without a deadline come last either way."
+            "Tasks without a deadline come last either way. `position` is the custom order: "
+            "ascending `position`, ties newest first."
         ),
         examples=["deadline"],
     )
@@ -132,6 +136,10 @@ _DEADLINE = "When the task is due, with a timezone; returned in UTC."
 _TITLE_EXAMPLE = "Prepare the quarterly report"
 _DESCRIPTION_EXAMPLE = "Collect the numbers from finance and draft the summary."
 _DEADLINE_EXAMPLE = "2026-12-01T17:00:00Z"
+_POSITION = (
+    "Place in the custom order (`ordering=position`): lower comes first. To move a task "
+    "between two others, send a number between theirs, such as their midpoint."
+)
 
 
 class TaskCreate(BaseModel):
@@ -151,7 +159,7 @@ class TaskCreate(BaseModel):
 
 
 class TaskUpdate(BaseModel):
-    """Only the fields sent are applied; title, status and priority can't be null."""
+    """Only the fields sent are applied; title, status, priority and position can't be null."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -178,9 +186,15 @@ class TaskUpdate(BaseModel):
         description=f"{_DEADLINE} Send `null` to clear it.",
         examples=[_DEADLINE_EXAMPLE],
     )
+    position: Position | None = Field(
+        default=None,
+        description=f"{_POSITION} Any finite number.",
+        examples=[1.5],
+        json_schema_extra=_without_null,
+    )
 
     # Runs only on values that were sent (defaults aren't validated), so omitting is fine.
-    @field_validator("title", "status", "priority")
+    @field_validator("title", "status", "priority", "position")
     @classmethod
     def _not_null(cls, value: object) -> object:
         if value is None:
@@ -201,6 +215,7 @@ class TaskRead(BaseModel):
     deadline: datetime | None = Field(
         description="When the task is due, in UTC.", examples=[_DEADLINE_EXAMPLE]
     )
+    position: float = Field(description=_POSITION, examples=[2.0])
     created_at: datetime = Field(
         description="When the task was created, in UTC.", examples=["2026-11-02T09:30:00Z"]
     )

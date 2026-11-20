@@ -47,6 +47,7 @@ async def test_list_returns_a_page_of_tasks_newest_first_by_default(
         "deadline",
         "created_at",
         "updated_at",
+        "position",
     }
 
 

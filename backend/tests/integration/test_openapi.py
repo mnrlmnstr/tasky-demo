@@ -163,3 +163,25 @@ async def test_interactive_docs_are_served(client: httpx.AsyncClient, path: str)
 
     assert response.status_code == 200
     assert "/openapi.json" in response.text
+
+
+async def test_update_has_an_example_moving_the_task(openapi: dict[str, Any]) -> None:
+    examples = body_examples(openapi, "/api/v1/tasks/{task_id}", "patch")
+
+    assert any(set(example) == {"position"} for example in examples)
+
+
+async def test_list_ordering_offers_the_custom_order(openapi: dict[str, Any]) -> None:
+    parameters = openapi["paths"]["/api/v1/tasks"]["get"]["parameters"]
+    [ordering] = [p for p in parameters if p["name"] == "ordering"]
+    schema = openapi["components"]["schemas"][ordering["schema"]["$ref"].rsplit("/", 1)[-1]]
+
+    assert "position" in schema["enum"]
+    assert "position" in ordering["description"]
+
+
+async def test_update_position_is_a_number_and_never_null(openapi: dict[str, Any]) -> None:
+    position = openapi["components"]["schemas"]["TaskUpdate"]["properties"]["position"]
+
+    assert position["type"] == "number"
+    assert "anyOf" not in position

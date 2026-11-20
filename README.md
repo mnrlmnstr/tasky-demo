@@ -205,6 +205,7 @@ A task:
 | `status`      | `todo` \| `in_progress` \| `done` | default `todo`                          |
 | `priority`    | `low` \| `medium` \| `high`       | default `medium`                        |
 | `deadline`    | datetime with a time zone, or `null` | optional; returned in UTC            |
+| `position`    | number                            | place in the custom order, lower first; new tasks go on top; `PATCH` takes any finite number |
 | `created_at`  | datetime (UTC)                    | set by the server                       |
 | `updated_at`  | datetime (UTC)                    | set by the server on every update       |
 
@@ -216,7 +217,7 @@ Query parameters for `GET /tasks`:
 | ----------- | ------------- | -------------------------------------------------------------------------------------------------- |
 | `status`    | `in_progress` | filter by status                                                                                   |
 | `search`    | `звіт`        | case-insensitive substring of the title; `%` and `_` match literally                               |
-| `ordering`  | `-created_at` | `created_at` or `deadline`, prefix `-` for descending; default `-created_at`; no deadline sorts last |
+| `ordering`  | `-created_at` | `created_at` or `deadline`, prefix `-` for descending; default `-created_at`; no deadline sorts last; `position` is the custom order (ascending, ties newest first) |
 | `page`      | `1`           | page number, starting at 1 (default 1)                                                             |
 | `page_size` | `20`          | items per page, 1–100 (default 20)                                                                 |
 

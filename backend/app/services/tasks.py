@@ -11,8 +11,14 @@ from app.services.errors import TaskNotFound
 logger = logging.getLogger(__name__)
 
 
+async def _top_position(session: AsyncSession) -> float:
+    """A position above every task that isn't deleted: new tasks start at the top."""
+    lowest = await session.scalar(select(func.min(Task.position)).where(Task.deleted_at.is_(None)))
+    return 0.0 if lowest is None else lowest - 1
+
+
 async def create_task(session: AsyncSession, data: TaskCreate) -> Task:
-    task = Task(**data.model_dump())
+    task = Task(**data.model_dump(), position=await _top_position(session))
     session.add(task)
     await session.commit()
     logger.info("task_created", extra={"task_id": str(task.id)})
@@ -28,6 +34,7 @@ async def get_task(session: AsyncSession, task_id: uuid.UUID) -> Task:
 
 
 # Tasks without a deadline go last both ways; created_at, then id, keep pages stable on ties.
+# The custom order breaks ties newest first, as new tasks go to the top.
 _ORDER_BY = {
     TaskOrdering.CREATED_AT: (Task.created_at.asc(), Task.id.asc()),
     TaskOrdering.CREATED_AT_DESC: (Task.created_at.desc(), Task.id.asc()),
@@ -37,6 +44,7 @@ _ORDER_BY = {
         Task.created_at.asc(),
         Task.id.asc(),
     ),
+    TaskOrdering.POSITION: (Task.position.asc(), Task.created_at.desc(), Task.id.asc()),
 }
 
 
