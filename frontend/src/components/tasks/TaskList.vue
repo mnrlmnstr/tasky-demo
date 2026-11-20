@@ -77,17 +77,20 @@ provide(FOCUS_TASK_LIST, () => region.value?.focus({ preventScroll: true }))
       <p data-testid="task-total" class="h-5 text-[13px] leading-5 text-text-muted">
         {{ totalText }}
       </p>
-      <ul
-        class="relative mt-2 divide-y divide-border border-y border-border transition-opacity"
-        :class="{ 'opacity-50': tasks.status === 'reloading' }"
-        :aria-busy="tasks.status === 'reloading' ? 'true' : undefined"
-      >
-        <TransitionGroup name="task-row" @before-leave="pinInPlace">
-          <li v-for="task in tasks.items" :key="task.id">
-            <TaskRow :task="task" />
-          </li>
-        </TransitionGroup>
-      </ul>
+      <!-- Another layout of the same rows (the table) takes the place of the list; the states around it stay. -->
+      <slot name="rows">
+        <ul
+          class="relative mt-2 divide-y divide-border border-y border-border transition-opacity"
+          :class="{ 'opacity-50': tasks.status === 'reloading' }"
+          :aria-busy="tasks.status === 'reloading' ? 'true' : undefined"
+        >
+          <TransitionGroup name="task-row" @before-leave="pinInPlace">
+            <li v-for="task in tasks.items" :key="task.id">
+              <TaskRow :task="task" />
+            </li>
+          </TransitionGroup>
+        </ul>
+      </slot>
       <Pagination :page="tasks.page" :pages="tasks.pages" class="mt-5" @update:page="goToPage" />
     </template>
 

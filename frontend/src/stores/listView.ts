@@ -14,11 +14,16 @@ export type StatusFilter = (typeof STATUS_FILTERS)[number]
 
 export const ORDERINGS = Object.values(TaskOrdering)
 
+/** How the tasks are laid out: not a filter, so it never changes which tasks are shown. */
+export const TASK_VIEWS = ['list', 'board', 'table'] as const
+export type TaskView = (typeof TASK_VIEWS)[number]
+
 export type ListQueryParams = Omit<ListTasksParams, 'page_size'>
 
 const DEFAULT_SEARCH = ''
 const DEFAULT_STATUS: StatusFilter = 'all'
 const DEFAULT_ORDERING: TaskOrdering = '-created_at'
+const DEFAULT_VIEW: TaskView = 'list'
 export const FIRST_PAGE = 1
 
 // No bound: a deadline filter is a pair of local days, either of which can be left open.
@@ -32,13 +37,14 @@ interface Filters {
   deadlineFrom: string
   /** Last local day due (included), `YYYY-MM-DD`, or empty. */
   deadlineTo: string
+  view: TaskView
 }
 
 interface View extends Filters {
   page: number
 }
 
-const VIEW_FIELDS = ['search', 'status', 'ordering', 'deadlineFrom', 'deadlineTo', 'page'] as const
+const VIEW_FIELDS = ['search', 'status', 'ordering', 'deadlineFrom', 'deadlineTo', 'page', 'view'] as const
 
 // The address names each field the way the API does.
 const PARAM_OF = {
@@ -48,6 +54,7 @@ const PARAM_OF = {
   deadlineFrom: 'deadline_from',
   deadlineTo: 'deadline_to',
   page: 'page',
+  view: 'view',
 } as const satisfies Record<keyof View, string>
 type OwnedParam = (typeof PARAM_OF)[keyof View]
 const OWNED_PARAMS = Object.values(PARAM_OF)
@@ -98,6 +105,7 @@ function filtersFrom(source: Partial<Record<keyof Filters, unknown>> | null): Fi
     status: oneOf(STATUS_FILTERS, source?.status, DEFAULT_STATUS),
     ordering: oneOf(ORDERINGS, source?.ordering, DEFAULT_ORDERING),
     ...deadlineRange(source?.deadlineFrom, source?.deadlineTo),
+    view: oneOf(TASK_VIEWS, source?.view, DEFAULT_VIEW),
   }
 }
 
@@ -128,6 +136,7 @@ function paramsOf(view: View): Record<OwnedParam, string | undefined> {
     deadline_from: view.deadlineFrom === NO_DAY ? undefined : view.deadlineFrom,
     deadline_to: view.deadlineTo === NO_DAY ? undefined : view.deadlineTo,
     page: view.page === FIRST_PAGE ? undefined : String(view.page),
+    view: view.view === DEFAULT_VIEW ? undefined : view.view,
   }
 }
 
@@ -213,6 +222,12 @@ export const useListViewStore = defineStore('listView', () => {
     set: (value: number) => change({ ...view.value, page: pageFromNumber(value) }, 'push'),
   })
 
+  // Switching the layout keeps the page: going back to the list returns to where it was.
+  const viewMode = computed({
+    get: () => view.value.view,
+    set: (value: TaskView) => change({ ...view.value, view: oneOf(TASK_VIEWS, value, DEFAULT_VIEW) }, 'push'),
+  })
+
   // For a page the user did not choose (the list got shorter, the page size changed): it takes the
   // place of the current history entry, so back never lands on a page that sends the user forward again.
   function correctPage(value: number): void {
@@ -256,7 +271,7 @@ export const useListViewStore = defineStore('listView', () => {
 
   // Synchronous, so the view is saved by the time the assignment returns; back/forward pass through here too.
   watch(
-    [search, status, ordering, deadlineFrom, deadlineTo],
+    [search, status, ordering, deadlineFrom, deadlineTo, viewMode],
     () =>
       saveFilters({
         search: search.value,
@@ -264,6 +279,7 @@ export const useListViewStore = defineStore('listView', () => {
         ordering: ordering.value,
         deadlineFrom: deadlineFrom.value,
         deadlineTo: deadlineTo.value,
+        view: viewMode.value,
       }),
     { flush: 'sync', immediate: true },
   )
@@ -276,6 +292,7 @@ export const useListViewStore = defineStore('listView', () => {
     deadlineTo,
     setDeadline,
     page,
+    view: viewMode,
     isFiltered,
     queryParams,
     clearFilters,

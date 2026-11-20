@@ -332,7 +332,7 @@ describe('settings from the header', () => {
 
     const dialog = findSettingsDialog()
     expect(dialog?.textContent).toContain('Settings')
-    expect(pressedOptions()).toEqual(['System', '20', 'English'])
+    expect(pressedOptions()).toEqual(['System', '20', 'English', 'Comfortable'])
     expect(api.queries).toHaveLength(1)
   })
 
