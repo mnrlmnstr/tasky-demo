@@ -1,5 +1,6 @@
+import { getLocalTimeZone } from '@internationalized/date'
 import { createSharedComposable, useIntervalFn } from '@vueuse/core'
-import { inject, ref, type InjectionKey } from 'vue'
+import { hasInjectionContext, inject, ref, type InjectionKey } from 'vue'
 
 /** Where components get the current time and the zone to show dates in, so tests can pin both. */
 export interface Clock {
@@ -11,6 +12,19 @@ export interface Clock {
 export const CLOCK: InjectionKey<Clock> = Symbol('clock')
 
 const SYSTEM_CLOCK: Clock = { now: () => new Date() }
+
+/**
+ * The clock provided to the app, read once and without the minute tick: for stores, which have an
+ * injection context only when their pinia is installed on an app. The system clock otherwise.
+ */
+export function injectClock(): Clock {
+  return hasInjectionContext() ? inject(CLOCK, SYSTEM_CLOCK) : SYSTEM_CLOCK
+}
+
+/** The zone the clock shows dates in: the pinned one, or the user's own. */
+export function clockTimeZone(clock: Clock): string {
+  return clock.timeZone ?? getLocalTimeZone()
+}
 
 const TICK_MS = 60_000
 

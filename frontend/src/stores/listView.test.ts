@@ -27,6 +27,8 @@ function loadStore() {
   return useListViewStore()
 }
 
+const NO_DEADLINE = { deadlineFrom: '', deadlineTo: '' }
+
 function savedViewIs(value: unknown): void {
   localStorage.setItem(LIST_VIEW_STORAGE_KEY, JSON.stringify(value))
 }
@@ -599,7 +601,7 @@ describe('remembering the view', () => {
     view.ordering = 'deadline'
     view.page = 3
 
-    expect(savedView()).toEqual({ search: 'report', status: 'done', ordering: 'deadline' })
+    expect(savedView()).toEqual({ ...NO_DEADLINE, search: 'report', status: 'done', ordering: 'deadline' })
   })
 
   it('saves the cleared view', () => {
@@ -608,7 +610,7 @@ describe('remembering the view', () => {
 
     view.clearFilters()
 
-    expect(savedView()).toEqual({ search: '', status: 'all', ordering: 'deadline' })
+    expect(savedView()).toEqual({ ...NO_DEADLINE, search: '', status: 'all', ordering: 'deadline' })
   })
 
   it('saves the view a shared address opened', () => {
@@ -617,7 +619,7 @@ describe('remembering the view', () => {
 
     loadStore()
 
-    expect(savedView()).toEqual({ search: '', status: 'done', ordering: '-created_at' })
+    expect(savedView()).toEqual({ ...NO_DEADLINE, search: '', status: 'done', ordering: '-created_at' })
   })
 
   it('saves the view that back returns to', async () => {
@@ -627,7 +629,7 @@ describe('remembering the view', () => {
 
     await goBack()
 
-    expect(savedView()).toEqual({ search: '', status: 'all', ordering: '-created_at' })
+    expect(savedView()).toEqual({ ...NO_DEADLINE, search: '', status: 'all', ordering: '-created_at' })
   })
 
   it('restores the saved view on a bare address, in the address bar too, without a history entry', async () => {
