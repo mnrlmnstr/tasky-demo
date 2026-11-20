@@ -12,8 +12,9 @@ import {
   type TaskStatus,
   type TaskUpdate,
 } from '../../api/generated/client'
-import { ApiError, type ApiErrorKind, type FieldError } from '../../api/http'
+import { ApiError, type FieldError } from '../../api/http'
 import { useClock } from '../../i18n/clock'
+import { errorMessageKey } from '../../i18n/errorMessages'
 import { useTaskFormStore } from '../../stores/taskForm'
 import { useTasksStore } from '../../stores/tasks'
 import { offerUndoOfCreate, offerUndoOfEdit } from '../../stores/undoActions'
@@ -34,14 +35,6 @@ import {
 
 const STATUSES: TaskStatus[] = ['todo', 'in_progress', 'done']
 const PRIORITIES: TaskPriority[] = ['low', 'medium', 'high']
-
-const FAILURE_MESSAGES: Record<ApiErrorKind, string> = {
-  network: 'errors.network',
-  server: 'errors.server',
-  not_found: 'errors.not_found',
-  validation: 'errors.generic',
-  aborted: 'errors.generic',
-}
 
 /** What the fields hold. */
 interface Values {
@@ -216,7 +209,7 @@ async function showFailure(reason: unknown, editing: boolean): Promise<void> {
   }
   // Creating has no task to be missing: a 404 there is the server's fault.
   const shown = kind === 'not_found' && !editing ? 'server' : kind
-  if (fieldErrors.length === 0) failure.value = FAILURE_MESSAGES[shown]
+  if (fieldErrors.length === 0) failure.value = errorMessageKey(shown)
   await focusFirstInvalid()
 }
 
